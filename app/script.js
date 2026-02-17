@@ -96,22 +96,17 @@
     // ==========================================
     const EmailCopy = {
         init() {
-            const emailCard = document.getElementById('emailCard');
-            if (!emailCard) return;
+            const copyBtn = document.getElementById('copyEmail');
+            if (!copyBtn) return;
 
-            emailCard.addEventListener('click', (e) => {
-                e.preventDefault();
-                const email = emailCard.dataset.email;
+            copyBtn.addEventListener('click', () => {
+                const email = copyBtn.dataset.email;
                 const isRu = document.documentElement.lang === 'ru';
                 
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(email).then(() => {
                         Toast.show(isRu ? 'Email скопирован!' : 'Email copied!');
-                    }).catch(() => {
-                        window.location.href = `mailto:${email}`;
                     });
-                } else {
-                    window.location.href = `mailto:${email}`;
                 }
             });
         }

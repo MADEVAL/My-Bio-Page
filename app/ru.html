@@ -161,15 +161,19 @@
 
         <!-- Contact -->
         <section class="links-section">
-            <a href="mailto:leonidovev@gmail.com" class="link-card email-card" id="emailCard" data-email="leonidovev@gmail.com">
-                <div class="link-icon"><i class="fas fa-envelope"></i></div>
-                <div class="link-content">
-                    <span class="link-title">Написать мне</span>
-                    <span class="link-subtitle">leonidovev@gmail.com</span>
-                </div>
-                <span class="copy-hint">Нажмите, чтобы скопировать</span>
-                <i class="fas fa-arrow-right link-arrow"></i>
-            </a>
+            <div class="email-wrapper">
+                <a href="mailto:leonidovev@gmail.com" class="link-card email-card">
+                    <div class="link-icon"><i class="fas fa-envelope"></i></div>
+                    <div class="link-content">
+                        <span class="link-title">Написать мне</span>
+                        <span class="link-subtitle">leonidovev@gmail.com</span>
+                    </div>
+                    <i class="fas fa-arrow-right link-arrow"></i>
+                </a>
+                <button class="copy-btn" id="copyEmail" data-email="leonidovev@gmail.com" aria-label="Скопировать email">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
         </section>
 
         <!-- Footer -->

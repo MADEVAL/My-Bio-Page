@@ -395,6 +395,46 @@ button {
 .link-card:hover .link-icon.tiktok { background: #000; color: #fff; }
 
 /* Email Card */
+.email-wrapper {
+    display: flex;
+    gap: var(--spacing-xs);
+    align-items: stretch;
+}
+
+.email-wrapper .email-card {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.copy-btn {
+    width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px dashed var(--border-accent);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    background: var(--bg-accent);
+    color: #fff;
+    border-style: solid;
+    border-color: var(--bg-accent);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.copy-btn:focus-visible {
+    outline: 2px solid var(--bg-accent);
+    outline-offset: 2px;
+}
+
 .email-card {
     border: 1px dashed var(--border-accent);
     background: transparent;
@@ -566,21 +606,6 @@ button {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
-}
-
-/* ==========================================
-   Copy Hint
-   ========================================== */
-.copy-hint {
-    font-size: 0.6875rem;
-    color: var(--text-muted);
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-    white-space: nowrap;
-}
-
-.email-card:hover .copy-hint {
-    opacity: 1;
 }
 
 /* ==========================================
