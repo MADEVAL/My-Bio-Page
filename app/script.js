@@ -1,7 +1,7 @@
 /**
- * Link Bio Page - Theme & Language Controller
+ * Link Bio Page - Theme Controller & UX Enhancements
  * Yevhen Leonidov | Software Architect
- * Updated 2026 — with safety, a11y and UX improvements
+ * Updated 2026 — SEO-friendly two-page approach (EN/RU)
  */
 
 (function() {
@@ -12,11 +12,9 @@
     // ==========================================
     const CONFIG = {
         storageKeys: {
-            theme: 'linkbio-theme',
-            lang: 'linkbio-lang'
+            theme: 'linkbio-theme'
         },
-        defaultTheme: 'dark',
-        defaultLang: 'en'
+        defaultTheme: 'dark'
     };
 
     // ==========================================
@@ -74,10 +72,8 @@
             document.documentElement.setAttribute('data-theme', theme);
             Storage.set(CONFIG.storageKeys.theme, theme);
             
-            // Update icon
             this.icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
-            // Update theme-color meta
             const metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
             const metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
             if (metaDark) metaDark.content = theme === 'dark' ? '#0a0a0b' : '#fafafa';
@@ -92,63 +88,6 @@
         toggle() {
             const current = document.documentElement.getAttribute('data-theme');
             this.setTheme(current === 'dark' ? 'light' : 'dark');
-        },
-
-        get current() {
-            return document.documentElement.getAttribute('data-theme');
-        }
-    };
-
-    // ==========================================
-    // Language Controller
-    // ==========================================
-    const LangController = {
-        init() {
-            this.langBtn = document.getElementById('langToggle');
-            this.langText = this.langBtn.querySelector('.lang-text');
-            
-            const savedLang = Storage.get(CONFIG.storageKeys.lang) || this.detectLanguage();
-            this.setLanguage(savedLang, false);
-            
-            this.langBtn.addEventListener('click', () => this.toggle());
-        },
-
-        detectLanguage() {
-            const browserLang = navigator.language || navigator.userLanguage;
-            return browserLang.startsWith('ru') ? 'ru' : CONFIG.defaultLang;
-        },
-
-        setLanguage(lang, animate = true) {
-            this.currentLang = lang;
-            Storage.set(CONFIG.storageKeys.lang, lang);
-            
-            // Show opposite language as option
-            this.langText.textContent = lang === 'en' ? 'RU' : 'EN';
-            
-            document.documentElement.lang = lang;
-            
-            // Re-query translatable elements each time (supports dynamic DOM)
-            const elements = document.querySelectorAll('[data-en], [data-ru]');
-            elements.forEach(el => {
-                const text = el.getAttribute(`data-${lang}`);
-                if (text) el.textContent = text;
-            });
-
-            // Update aria-labels
-            const ariaEls = document.querySelectorAll('[data-aria-en], [data-aria-ru]');
-            ariaEls.forEach(el => {
-                const ariaText = el.getAttribute(`data-aria-${lang}`);
-                if (ariaText) el.setAttribute('aria-label', ariaText);
-            });
-
-            if (animate) {
-                this.langBtn.style.transform = 'scale(0.9)';
-                setTimeout(() => { this.langBtn.style.transform = ''; }, 150);
-            }
-        },
-
-        toggle() {
-            this.setLanguage(this.currentLang === 'en' ? 'ru' : 'en');
         }
     };
 
@@ -163,15 +102,12 @@
             emailCard.addEventListener('click', (e) => {
                 e.preventDefault();
                 const email = emailCard.dataset.email;
+                const isRu = document.documentElement.lang === 'ru';
                 
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(email).then(() => {
-                        const msg = LangController.currentLang === 'ru' 
-                            ? 'Email скопирован!' 
-                            : 'Email copied!';
-                        Toast.show(msg);
+                        Toast.show(isRu ? 'Email скопирован!' : 'Email copied!');
                     }).catch(() => {
-                        // Fallback: open mailto
                         window.location.href = `mailto:${email}`;
                     });
                 } else {
@@ -182,7 +118,7 @@
     };
 
     // ==========================================
-    // Link Analytics (Optional Enhancement)
+    // Link Analytics
     // ==========================================
     const Analytics = {
         init() {
@@ -200,7 +136,7 @@
     };
 
     // ==========================================
-    // Keyboard Navigation Enhancement
+    // Keyboard Navigation
     // ==========================================
     const KeyboardNav = {
         init() {
@@ -211,7 +147,9 @@
                     ThemeController.toggle();
                 }
                 if (e.key === 'l' || e.key === 'L') {
-                    LangController.toggle();
+                    // Navigate to the other language page
+                    const langLink = document.getElementById('langToggle');
+                    if (langLink) langLink.click();
                 }
             });
         },
@@ -227,11 +165,10 @@
     };
 
     // ==========================================
-    // Ripple Effect (Subtle interaction feedback)
+    // Ripple Effect
     // ==========================================
     const RippleEffect = {
         init() {
-            // Inject ripple keyframes once
             if (!document.getElementById('ripple-style')) {
                 const style = document.createElement('style');
                 style.id = 'ripple-style';
@@ -276,18 +213,17 @@
     };
 
     // ==========================================
-    // Initialize Everything
+    // Initialize
     // ==========================================
     function init() {
         ThemeController.init();
-        LangController.init();
         EmailCopy.init();
         Analytics.init();
         KeyboardNav.init();
         RippleEffect.init();
 
         console.log('[LinkBio] Initialized successfully');
-        console.log('[LinkBio] Keyboard shortcuts: T = Toggle theme, L = Toggle language');
+        console.log('[LinkBio] Keyboard shortcuts: T = Toggle theme, L = Switch language');
     }
 
     if (document.readyState === 'loading') {
