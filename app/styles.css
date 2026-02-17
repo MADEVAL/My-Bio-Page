@@ -438,13 +438,13 @@ button {
 }
 
 /* Social Button Colors */
-.social-btn:nth-child(1):hover { background: #ff0000; color: #fff; border-color: #ff0000; } /* YouTube */
-.social-btn:nth-child(2):hover { background: #000; color: #fff; border-color: #000; } /* TikTok */
-.social-btn:nth-child(3):hover { background: #000; color: #fff; border-color: #000; } /* Medium */
-.social-btn:nth-child(4):hover { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); color: #fff; border-color: #dc2743; } /* Instagram */
-.social-btn:nth-child(5):hover { background: #ff4500; color: #fff; border-color: #ff4500; } /* Reddit */
-.social-btn:nth-child(6):hover { background: #35465c; color: #fff; border-color: #35465c; } /* Tumblr */
-.social-btn:nth-child(7):hover { background: #333; color: #fff; border-color: #333; } /* GitHub */
+.social-btn:nth-child(1):hover { background: #000; color: #fff; border-color: #000; } /* TikTok */
+.social-btn:nth-child(2):hover { background: #000; color: #fff; border-color: #000; } /* X */
+.social-btn:nth-child(3):hover { background: #000; color: #fff; border-color: #000; } /* Threads */
+.social-btn:nth-child(4):hover { background: #000; color: #fff; border-color: #000; } /* Medium */
+.social-btn:nth-child(5):hover { background: #6364ff; color: #fff; border-color: #6364ff; } /* Mastodon */
+.social-btn:nth-child(6):hover { background: #ff4500; color: #fff; border-color: #ff4500; } /* Reddit */
+.social-btn:nth-child(7):hover { background: #35465c; color: #fff; border-color: #35465c; } /* Tumblr */
 
 /* ==========================================
    Footer
