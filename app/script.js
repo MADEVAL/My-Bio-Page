@@ -1,6 +1,7 @@
 /**
  * Link Bio Page - Theme & Language Controller
  * Yevhen Leonidov | Software Architect
+ * Updated 2026 — with safety, a11y and UX improvements
  */
 
 (function() {
@@ -19,6 +20,43 @@
     };
 
     // ==========================================
+    // Safe localStorage wrapper
+    // ==========================================
+    const Storage = {
+        get(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch {
+                return null;
+            }
+        },
+        set(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch {
+                // Private mode or storage full — silently fail
+            }
+        }
+    };
+
+    // ==========================================
+    // Toast Notifications
+    // ==========================================
+    const Toast = {
+        show(message) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+            toast.addEventListener('animationend', (e) => {
+                if (e.animationName === 'toastOut') toast.remove();
+            });
+        }
+    };
+
+    // ==========================================
     // Theme Controller
     // ==========================================
     const ThemeController = {
@@ -26,38 +64,34 @@
             this.themeBtn = document.getElementById('themeToggle');
             this.icon = this.themeBtn.querySelector('i');
             
-            // Load saved theme or use default
-            const savedTheme = localStorage.getItem(CONFIG.storageKeys.theme) || CONFIG.defaultTheme;
+            const savedTheme = Storage.get(CONFIG.storageKeys.theme) || CONFIG.defaultTheme;
             this.setTheme(savedTheme, false);
             
-            // Bind events
             this.themeBtn.addEventListener('click', () => this.toggle());
         },
 
         setTheme(theme, animate = true) {
             document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem(CONFIG.storageKeys.theme, theme);
+            Storage.set(CONFIG.storageKeys.theme, theme);
             
             // Update icon
-            if (theme === 'dark') {
-                this.icon.className = 'fas fa-sun';
-            } else {
-                this.icon.className = 'fas fa-moon';
-            }
+            this.icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 
-            // Optional animation feedback
+            // Update theme-color meta
+            const metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
+            const metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
+            if (metaDark) metaDark.content = theme === 'dark' ? '#0a0a0b' : '#fafafa';
+            if (metaLight) metaLight.content = theme === 'light' ? '#fafafa' : '#0a0a0b';
+
             if (animate) {
                 this.themeBtn.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    this.themeBtn.style.transform = '';
-                }, 150);
+                setTimeout(() => { this.themeBtn.style.transform = ''; }, 150);
             }
         },
 
         toggle() {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            this.setTheme(newTheme);
+            const current = document.documentElement.getAttribute('data-theme');
+            this.setTheme(current === 'dark' ? 'light' : 'dark');
         },
 
         get current() {
@@ -72,13 +106,10 @@
         init() {
             this.langBtn = document.getElementById('langToggle');
             this.langText = this.langBtn.querySelector('.lang-text');
-            this.elements = document.querySelectorAll('[data-en], [data-ru]');
             
-            // Load saved language or detect from browser
-            const savedLang = localStorage.getItem(CONFIG.storageKeys.lang) || this.detectLanguage();
+            const savedLang = Storage.get(CONFIG.storageKeys.lang) || this.detectLanguage();
             this.setLanguage(savedLang, false);
             
-            // Bind events
             this.langBtn.addEventListener('click', () => this.toggle());
         },
 
@@ -89,34 +120,64 @@
 
         setLanguage(lang, animate = true) {
             this.currentLang = lang;
-            localStorage.setItem(CONFIG.storageKeys.lang, lang);
+            Storage.set(CONFIG.storageKeys.lang, lang);
             
-            // Update button text (show opposite language as option)
+            // Show opposite language as option
             this.langText.textContent = lang === 'en' ? 'RU' : 'EN';
             
-            // Update HTML lang attribute
             document.documentElement.lang = lang;
             
-            // Update all translatable elements
-            this.elements.forEach(el => {
+            // Re-query translatable elements each time (supports dynamic DOM)
+            const elements = document.querySelectorAll('[data-en], [data-ru]');
+            elements.forEach(el => {
                 const text = el.getAttribute(`data-${lang}`);
-                if (text) {
-                    el.textContent = text;
-                }
+                if (text) el.textContent = text;
             });
 
-            // Optional animation feedback
+            // Update aria-labels
+            const ariaEls = document.querySelectorAll('[data-aria-en], [data-aria-ru]');
+            ariaEls.forEach(el => {
+                const ariaText = el.getAttribute(`data-aria-${lang}`);
+                if (ariaText) el.setAttribute('aria-label', ariaText);
+            });
+
             if (animate) {
                 this.langBtn.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    this.langBtn.style.transform = '';
-                }, 150);
+                setTimeout(() => { this.langBtn.style.transform = ''; }, 150);
             }
         },
 
         toggle() {
-            const newLang = this.currentLang === 'en' ? 'ru' : 'en';
-            this.setLanguage(newLang);
+            this.setLanguage(this.currentLang === 'en' ? 'ru' : 'en');
+        }
+    };
+
+    // ==========================================
+    // Email Copy Handler
+    // ==========================================
+    const EmailCopy = {
+        init() {
+            const emailCard = document.getElementById('emailCard');
+            if (!emailCard) return;
+
+            emailCard.addEventListener('click', (e) => {
+                e.preventDefault();
+                const email = emailCard.dataset.email;
+                
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(email).then(() => {
+                        const msg = LangController.currentLang === 'ru' 
+                            ? 'Email скопирован!' 
+                            : 'Email copied!';
+                        Toast.show(msg);
+                    }).catch(() => {
+                        // Fallback: open mailto
+                        window.location.href = `mailto:${email}`;
+                    });
+                } else {
+                    window.location.href = `mailto:${email}`;
+                }
+            });
         }
     };
 
@@ -127,17 +188,12 @@
         init() {
             const links = document.querySelectorAll('.link-card, .social-btn');
             links.forEach(link => {
-                link.addEventListener('click', (e) => {
+                link.addEventListener('click', () => {
                     const href = link.getAttribute('href');
                     const title = link.querySelector('.link-title')?.textContent || 
                                   link.getAttribute('aria-label') || 
                                   'Unknown';
-                    
-                    // Log click (replace with actual analytics if needed)
                     console.log(`[LinkBio] Clicked: ${title} -> ${href}`);
-                    
-                    // You can integrate with analytics services here
-                    // Example: gtag('event', 'click', { 'link_title': title, 'link_url': href });
                 });
             });
         }
@@ -149,27 +205,24 @@
     const KeyboardNav = {
         init() {
             document.addEventListener('keydown', (e) => {
-                // Toggle theme with 'T' key
+                if (this.isInteractiveFocused()) return;
+
                 if (e.key === 't' || e.key === 'T') {
-                    if (!this.isInputFocused()) {
-                        ThemeController.toggle();
-                    }
+                    ThemeController.toggle();
                 }
-                
-                // Toggle language with 'L' key
                 if (e.key === 'l' || e.key === 'L') {
-                    if (!this.isInputFocused()) {
-                        LangController.toggle();
-                    }
+                    LangController.toggle();
                 }
             });
         },
 
-        isInputFocused() {
-            const activeEl = document.activeElement;
-            return activeEl.tagName === 'INPUT' || 
-                   activeEl.tagName === 'TEXTAREA' || 
-                   activeEl.isContentEditable;
+        isInteractiveFocused() {
+            const el = document.activeElement;
+            return el.tagName === 'INPUT' || 
+                   el.tagName === 'TEXTAREA' || 
+                   el.tagName === 'A' ||
+                   el.tagName === 'BUTTON' ||
+                   el.isContentEditable;
         }
     };
 
@@ -178,11 +231,21 @@
     // ==========================================
     const RippleEffect = {
         init() {
+            // Inject ripple keyframes once
+            if (!document.getElementById('ripple-style')) {
+                const style = document.createElement('style');
+                style.id = 'ripple-style';
+                style.textContent = `
+                    @keyframes ripple {
+                        to { transform: scale(4); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
             const cards = document.querySelectorAll('.link-card');
             cards.forEach(card => {
-                card.addEventListener('click', (e) => {
-                    this.create(e, card);
-                });
+                card.addEventListener('click', (e) => this.create(e, card));
             });
         },
 
@@ -207,25 +270,7 @@
                 pointer-events: none;
             `;
 
-            // Add ripple animation if not exists
-            if (!document.getElementById('ripple-style')) {
-                const style = document.createElement('style');
-                style.id = 'ripple-style';
-                style.textContent = `
-                    @keyframes ripple {
-                        to {
-                            transform: scale(4);
-                            opacity: 0;
-                        }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
-
-            element.style.position = 'relative';
-            element.style.overflow = 'hidden';
             element.appendChild(ripple);
-
             ripple.addEventListener('animationend', () => ripple.remove());
         }
     };
@@ -236,6 +281,7 @@
     function init() {
         ThemeController.init();
         LangController.init();
+        EmailCopy.init();
         Analytics.init();
         KeyboardNav.init();
         RippleEffect.init();
@@ -244,7 +290,6 @@
         console.log('[LinkBio] Keyboard shortcuts: T = Toggle theme, L = Toggle language');
     }
 
-    // Run on DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

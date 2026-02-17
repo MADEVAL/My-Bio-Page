@@ -5,7 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yevhen Leonidov | Software Architect</title>
     <meta name="description" content="Software Developer & Architect - Links to all my projects and social profiles">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Yevhen Leonidov | Software Architect">
+    <meta property="og:description" content="Software Developer & Architect - Links to all my projects and social profiles">
+    <meta property="og:image" content="https://leonidov.dev/assets/OG.jpg">
+    <meta property="og:url" content="https://leonidov.dev">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="ru_RU">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Yevhen Leonidov | Software Architect">
+    <meta name="twitter:description" content="Software Developer & Architect - Links to all my projects and social profiles">
+    <meta name="twitter:image" content="https://leonidov.dev/assets/OG.jpg">
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+    <meta name="color-scheme" content="dark light">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="assets/photo.jpg">
+    <link rel="apple-touch-icon" href="assets/photo.jpg">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -14,10 +39,10 @@
 <body>
     <!-- Controls -->
     <div class="controls">
-        <button class="control-btn" id="langToggle" aria-label="Switch language">
+        <button class="control-btn" id="langToggle" aria-label="Switch language" data-aria-en="Switch language" data-aria-ru="Сменить язык">
             <span class="lang-text">RU</span>
         </button>
-        <button class="control-btn" id="themeToggle" aria-label="Toggle theme">
+        <button class="control-btn" id="themeToggle" aria-label="Toggle theme" data-aria-en="Toggle theme" data-aria-ru="Сменить тему">
             <i class="fas fa-sun"></i>
         </button>
     </div>
@@ -26,9 +51,7 @@
         <!-- Profile Section -->
         <header class="profile">
             <div class="avatar">
-                <div class="avatar-placeholder">
-                    <i class="fas fa-code"></i>
-                </div>
+                <img src="assets/photo.jpg" alt="Yevhen Leonidov" class="avatar-img" width="120" height="120" loading="eager">
             </div>
             <h1 class="name" data-en="Yevhen Leonidov" data-ru="Евгений Леонидов">Yevhen Leonidov</h1>
             <p class="title" data-en="Software Architect & Developer" data-ru="Архитектор ПО и Разработчик">Software Architect & Developer</p>
@@ -37,16 +60,7 @@
 
         <!-- Main Links -->
         <section class="links-section">
-            <a href="https://leonidov.dev" class="link-card" target="_blank" rel="noopener">
-                <div class="link-icon"><i class="fas fa-globe"></i></div>
-                <div class="link-content">
-                    <span class="link-title" data-en="Personal Website & Blog" data-ru="Личный сайт и Блог">Personal Website & Blog</span>
-                    <span class="link-subtitle">leonidov.dev</span>
-                </div>
-                <i class="fas fa-arrow-right link-arrow"></i>
-            </a>
-
-            <a href="https://t.me/leonidov_dev" class="link-card" target="_blank" rel="noopener">
+            <a href="https://t.me/leonidov_dev" class="link-card" target="_blank" rel="noopener noreferrer">
                 <div class="link-icon"><i class="fab fa-telegram"></i></div>
                 <div class="link-content">
                     <span class="link-title" data-en="Telegram Channel" data-ru="Telegram Канал">Telegram Channel</span>
@@ -55,11 +69,11 @@
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
 
-            <a href="https://your-company.dev" class="link-card featured" target="_blank" rel="noopener">
-                <div class="link-icon"><i class="fas fa-building"></i></div>
+            <a href="https://globus.studio" class="link-card featured" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><img src="assets/GLOBUS_WHITE.png" alt="GLOBUS.studio" class="link-logo"></div>
                 <div class="link-content">
-                    <span class="link-title" data-en="Outsource Development Company" data-ru="Аутсорс Разработка">Outsource Development Company</span>
-                    <span class="link-subtitle" data-en="Enterprise Solutions" data-ru="Корпоративные Решения">Enterprise Solutions</span>
+                    <span class="link-title">GLOBUS.studio</span>
+                    <span class="link-subtitle" data-en="Outsource Development" data-ru="Аутсорс Разработка">Outsource Development</span>
                 </div>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
@@ -68,44 +82,44 @@
         <!-- Projects Section -->
         <section class="links-section">
             <h2 class="section-title" data-en="Projects" data-ru="Проекты">Projects</h2>
-            
-            <a href="https://botblocker.dev" class="link-card project-card" target="_blank" rel="noopener">
-                <div class="link-icon"><i class="fas fa-shield-halved"></i></div>
+
+            <a href="https://botblocker.top" class="link-card project-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><img src="assets/bb_mini.png" alt="BotBlocker" class="link-logo"></div>
                 <div class="link-content">
                     <span class="link-title">BotBlocker</span>
-                    <span class="link-subtitle" data-en="Protect your platform from bots" data-ru="Защита платформы от ботов">Protect your platform from bots</span>
+                    <span class="link-subtitle" data-en="WordPress Protection from Bots" data-ru="Защита WordPress от ботов">WordPress Protection from Bots</span>
                 </div>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
         </section>
 
-        <!-- Content Platforms -->
+        <!-- Content & Platforms -->
         <section class="links-section">
             <h2 class="section-title" data-en="Content" data-ru="Контент">Content</h2>
-            
-            <a href="https://youtube.com/@leonidov_dev" class="link-card" target="_blank" rel="noopener">
-                <div class="link-icon youtube"><i class="fab fa-youtube"></i></div>
+
+            <a href="https://leonidov.dev" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><i class="fas fa-globe"></i></div>
                 <div class="link-content">
-                    <span class="link-title">YouTube</span>
-                    <span class="link-subtitle" data-en="Tutorials & Tech talks" data-ru="Туториалы и Доклады">Tutorials & Tech talks</span>
+                    <span class="link-title" data-en="Personal Website & Blog" data-ru="Личный сайт и Блог">Personal Website & Blog</span>
+                    <span class="link-subtitle">leonidov.dev</span>
                 </div>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
 
-            <a href="https://tiktok.com/@leonidov_dev" class="link-card" target="_blank" rel="noopener">
-                <div class="link-icon tiktok"><i class="fab fa-tiktok"></i></div>
+            <a href="https://linkedin.com/in/leonidov" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><i class="fab fa-linkedin-in"></i></div>
                 <div class="link-content">
-                    <span class="link-title">TikTok</span>
-                    <span class="link-subtitle" data-en="Quick dev tips" data-ru="Быстрые советы">Quick dev tips</span>
+                    <span class="link-title">LinkedIn</span>
+                    <span class="link-subtitle" data-en="Professional network" data-ru="Профессиональная сеть">Professional network</span>
                 </div>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
 
-            <a href="https://medium.com/@leonidov_dev" class="link-card" target="_blank" rel="noopener">
-                <div class="link-icon"><i class="fab fa-medium"></i></div>
+            <a href="https://facebook.com/leonidov.dev" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><i class="fab fa-facebook-f"></i></div>
                 <div class="link-content">
-                    <span class="link-title">Medium</span>
-                    <span class="link-subtitle" data-en="Technical articles" data-ru="Технические статьи">Technical articles</span>
+                    <span class="link-title">Facebook</span>
+                    <span class="link-subtitle">leonidov.dev</span>
                 </div>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
@@ -116,22 +130,25 @@
             <h2 class="section-title" data-en="Connect" data-ru="Связаться">Connect</h2>
             
             <div class="social-grid">
-                <a href="https://linkedin.com/in/leonidov" class="social-btn" target="_blank" rel="noopener" aria-label="LinkedIn">
-                    <i class="fab fa-linkedin-in"></i>
+                <a href="https://youtube.com/@leonidov_dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+                    <i class="fab fa-youtube"></i>
                 </a>
-                <a href="https://facebook.com/leonidov.dev" class="social-btn" target="_blank" rel="noopener" aria-label="Facebook">
-                    <i class="fab fa-facebook-f"></i>
+                <a href="https://tiktok.com/@leonidov_dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                    <i class="fab fa-tiktok"></i>
                 </a>
-                <a href="https://instagram.com/leonidov.dev" class="social-btn" target="_blank" rel="noopener" aria-label="Instagram">
+                <a href="https://medium.com/@leonidov_dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="Medium">
+                    <i class="fab fa-medium"></i>
+                </a>
+                <a href="https://instagram.com/leonidov.dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                     <i class="fab fa-instagram"></i>
                 </a>
-                <a href="https://reddit.com/u/leonidov_dev" class="social-btn" target="_blank" rel="noopener" aria-label="Reddit">
+                <a href="https://reddit.com/u/leonidov_dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="Reddit">
                     <i class="fab fa-reddit-alien"></i>
                 </a>
-                <a href="https://tumblr.com/leonidov-dev" class="social-btn" target="_blank" rel="noopener" aria-label="Tumblr">
+                <a href="https://tumblr.com/leonidov-dev" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="Tumblr">
                     <i class="fab fa-tumblr"></i>
                 </a>
-                <a href="https://github.com/leonidov" class="social-btn" target="_blank" rel="noopener" aria-label="GitHub">
+                <a href="https://github.com/leonidov" class="social-btn" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
                     <i class="fab fa-github"></i>
                 </a>
             </div>
@@ -139,21 +156,25 @@
 
         <!-- Contact -->
         <section class="links-section">
-            <a href="mailto:leonidovev@gmail.com" class="link-card email-card">
+            <a href="mailto:leonidovev@gmail.com" class="link-card email-card" id="emailCard" data-email="leonidovev@gmail.com">
                 <div class="link-icon"><i class="fas fa-envelope"></i></div>
                 <div class="link-content">
                     <span class="link-title" data-en="Get in Touch" data-ru="Написать мне">Get in Touch</span>
                     <span class="link-subtitle">leonidovev@gmail.com</span>
                 </div>
+                <span class="copy-hint" data-en="Click to copy" data-ru="Нажмите, чтобы скопировать">Click to copy</span>
                 <i class="fas fa-arrow-right link-arrow"></i>
             </a>
         </section>
 
         <!-- Footer -->
         <footer class="footer">
-            <p>&copy; 2024 Yevhen Leonidov</p>
+            <p>&copy; 2026 Yevhen Leonidov</p>
         </footer>
     </main>
+
+    <!-- Toast notifications -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="script.js"></script>
 </body>
