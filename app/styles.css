@@ -379,12 +379,12 @@ button {
 
 /* Project Card */
 .link-card.project-card .link-icon {
-    background: linear-gradient(135deg, #059669, #10b981);
+    background: linear-gradient(135deg, #FFC107, #FF5722);
     color: #fff;
 }
 
 .link-card.project-card:hover .link-icon {
-    background: linear-gradient(135deg, #047857, #059669);
+    background: linear-gradient(135deg, #FF5722, #FFC107);
 }
 
 /* Platform Icons Colors on Hover */
