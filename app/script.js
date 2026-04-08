@@ -1,7 +1,7 @@
 /**
  * Link Bio Page - Theme Controller & UX Enhancements
  * Yevhen Leonidov | Software Architect
- * Updated 2026 — SEO-friendly two-page approach (EN/RU)
+ * Updated 2026 - SEO-friendly two-page approach (EN/RU)
  */
 
 (function() {
@@ -32,7 +32,7 @@
             try {
                 localStorage.setItem(key, value);
             } catch {
-                // Private mode or storage full — silently fail
+                // Private mode or storage full - silently fail
             }
         }
     };
