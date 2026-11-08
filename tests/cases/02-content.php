@@ -23,11 +23,17 @@ $matrix = [
     ['siteUrl is not https', ['settings', 'siteUrl'], 'http://bio.leonidov.dev'],
     ['siteUrl is malformed', ['settings', 'siteUrl'], 'https://not a url'],
     ['email is invalid', ['settings', 'email'], 'nope'],
+    ['personUrl is invalid', ['settings', 'personUrl'], 'javascript:alert(1)'],
+    ['photo is unsafe', ['settings', 'photo'], 'javascript:alert(1)'],
     ['themeDefault is unknown', ['settings', 'themeDefault'], 'blue'],
     ['footerStart is not an integer', ['settings', 'footerStart'], '2016'],
+    ['footerStart is out of range', ['settings', 'footerStart'], 1899],
     ['lastmod has the wrong format', ['settings', 'lastmod'], '08.11.2026'],
+    ['lastmod has an impossible date', ['settings', 'lastmod'], '2026-02-30'],
     ['worksFor is not an object', ['settings', 'worksFor'], 'GLOBUS'],
     ['worksFor has no url', ['settings', 'worksFor'], ['name' => 'GLOBUS']],
+    ['worksFor has an empty name', ['settings', 'worksFor'], ['name' => '', 'url' => 'https://x.test']],
+    ['worksFor has an invalid url', ['settings', 'worksFor'], ['name' => 'X', 'url' => 'nope']],
     ['meta.en is missing', ['meta', 'en'], null],
     ['meta.en.title is empty', ['meta', 'en', 'title'], ''],
     ['profile.en is missing', ['profile', 'en'], null],
@@ -50,6 +56,7 @@ $matrix = [
     ['item type is unknown', ['sections', 0, 'items', 0, 'type'], 'button'],
     ['item href uses a bad scheme', ['sections', 0, 'items', 0, 'href'], 'ftp://example.com'],
     ['item href is not a string', ['sections', 0, 'items', 0, 'href'], 42],
+    ['email item href is not mailto', ['sections', 4, 'items', 0, 'href'], 'https://example.com'],
     ['item icon is unknown', ['sections', 0, 'items', 0, 'icon'], 'chrome'],
     ['item logo escapes assets/', ['sections', 0, 'items', 0, 'logo'], '../../etc/passwd'],
     ['item order is zero', ['sections', 0, 'items', 0, 'order'], 0],
@@ -57,6 +64,7 @@ $matrix = [
     ['item title is empty', ['sections', 0, 'items', 0, 'title', 'en'], ''],
     ['item subtitle is not an object', ['sections', 0, 'items', 0, 'subtitle'], 'x'],
     ['ga4 is not a measurement ID', ['settings', 'ga4'], 'UA-123456'],
+    ['ga4 is too short', ['settings', 'ga4'], 'G-ABCDE'],
     ['ga4 is not a string', ['settings', 'ga4'], 123],
 ];
 
@@ -76,6 +84,12 @@ Harness::test('rejects: item without icon or logo', function (): void {
     $data = seedData();
     unset($data['sections'][0]['items'][0]['icon']);
     assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'exactly one of icon or logo');
+});
+
+Harness::test('rejects: duplicate item ids across the tree', function (): void {
+    $data = seedData();
+    $data['sections'][1]['items'][0]['id'] = 'telegram';
+    assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'duplicate item id');
 });
 
 Harness::test('accepts: null labels and empty subtitles', function (): void {
@@ -240,6 +254,25 @@ Harness::test('throws when the backup directory cannot be created', function ():
         $broken = makeContent($root, null, $root . '/content/blocked');
 
         assertThrows(RuntimeException::class, static fn (): array => $broken->mutate('t', null, static fn (array $d): array => $d), 'backup directory');
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('throws when a backup cannot be copied', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $content = makeContent($root);
+        $content->mutate('t', null, static fn (array $d): array => $d);
+
+        mkdir($root . '/content/backups/site-rev002.json', 0775, true);
+
+        assertThrows(
+            RuntimeException::class,
+            static fn (): array => $content->mutate('t', null, static fn (array $d): array => $d),
+            'backup file'
+        );
     } finally {
         removeWorkspace($root);
     }

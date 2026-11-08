@@ -118,6 +118,19 @@ final class Content
             $this->fail('settings.siteUrl', 'must be an https URL');
         }
 
+        if (
+            preg_match('~^https?://~', $settings['personUrl']) !== 1
+            || filter_var($settings['personUrl'], FILTER_VALIDATE_URL) === false
+        ) {
+            $this->fail('settings.personUrl', 'must be a valid http(s) URL');
+        }
+
+        foreach (['photo', 'ogImage'] as $key) {
+            if (preg_match('~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg|svg)$~', $settings[$key]) !== 1) {
+                $this->fail("settings.{$key}", 'must be a path under assets/');
+            }
+        }
+
         if (filter_var($settings['email'], FILTER_VALIDATE_EMAIL) === false) {
             $this->fail('settings.email', 'must be a valid email address');
         }
@@ -126,23 +139,39 @@ final class Content
             $this->fail('settings.themeDefault', 'must be system, dark or light');
         }
 
-        if (!is_int($settings['footerStart'] ?? null)) {
-            $this->fail('settings.footerStart', 'must be an integer');
+        $footerStart = $settings['footerStart'] ?? null;
+
+        if (!is_int($footerStart) || $footerStart < 1900 || $footerStart > 9999) {
+            $this->fail('settings.footerStart', 'must be an integer between 1900 and 9999');
         }
 
-        if (!is_string($settings['lastmod'] ?? null) || preg_match('~^\d{4}-\d{2}-\d{2}$~', $settings['lastmod']) !== 1) {
-            $this->fail('settings.lastmod', 'must be YYYY-MM-DD');
+        $lastmod = $settings['lastmod'] ?? null;
+
+        if (
+            !is_string($lastmod)
+            || preg_match('~^(\d{4})-(\d{2})-(\d{2})$~', $lastmod, $date) !== 1
+            || !checkdate((int) $date[2], (int) $date[3], (int) $date[1])
+        ) {
+            $this->fail('settings.lastmod', 'must be a real date in YYYY-MM-DD format');
         }
 
         $worksFor = $settings['worksFor'] ?? null;
 
-        if (!is_array($worksFor) || !is_string($worksFor['name'] ?? null) || !is_string($worksFor['url'] ?? null)) {
-            $this->fail('settings.worksFor', 'must contain name and url');
+        if (
+            !is_array($worksFor)
+            || !is_string($worksFor['name'] ?? null)
+            || trim($worksFor['name']) === ''
+            || !is_string($worksFor['url'] ?? null)
+            || trim($worksFor['url']) === ''
+            || preg_match('~^https?://~', $worksFor['url']) !== 1
+            || filter_var($worksFor['url'], FILTER_VALIDATE_URL) === false
+        ) {
+            $this->fail('settings.worksFor', 'must contain a non-empty name and a valid url');
         }
 
         $ga4 = $settings['ga4'] ?? '';
 
-        if (!is_string($ga4) || ($ga4 !== '' && preg_match('~^G-[A-Z0-9]{6,20}$~', $ga4) !== 1)) {
+        if (!is_string($ga4) || ($ga4 !== '' && preg_match('~^G-[A-Z0-9]{10}$~', $ga4) !== 1)) {
             $this->fail('settings.ga4', 'must be empty or a GA4 measurement ID like G-XXXXXXXXXX');
         }
     }
@@ -195,6 +224,7 @@ final class Content
         }
 
         $sectionIds = [];
+        $itemIds = [];
 
         foreach ($sections as $index => $section) {
             $path = "sections[{$index}]";
@@ -231,6 +261,16 @@ final class Content
             }
 
             $this->validateItems($section['items'], $path);
+
+            foreach ($section['items'] as $item) {
+                $itemId = $item['id'] ?? '';
+
+                if (isset($itemIds[$itemId])) {
+                    $this->fail("{$path}.items", "contains a duplicate item id: {$itemId}");
+                }
+
+                $itemIds[$itemId] = true;
+            }
         }
     }
 
@@ -257,6 +297,10 @@ final class Content
 
             if (!is_string($href) || preg_match('~^(https?://|mailto:)[^\s]+$~', $href) !== 1) {
                 $this->fail("{$path}.href", 'must be an http(s) or mailto URL');
+            }
+
+            if ($item['type'] === 'email' && !str_starts_with($href, 'mailto:')) {
+                $this->fail("{$path}.href", 'must be a mailto URL for email items');
             }
 
             $hasIcon = isset($item['icon']);
@@ -343,8 +387,12 @@ final class Content
             throw new RuntimeException("Cannot create backup directory: {$this->backupDir}");
         }
 
-        $name = sprintf('site-%s-rev%03d.json', date('Ymd-His'), $rev);
-        @copy($this->file, $this->backupDir . '/' . $name);
+        $name = sprintf('site-rev%03d.json', $rev);
+
+        if (!@copy($this->file, $this->backupDir . '/' . $name)) {
+            throw new RuntimeException('Cannot write backup file');
+        }
+
         $this->pruneBackups();
     }
 
@@ -356,7 +404,7 @@ final class Content
             return;
         }
 
-        sort($files);
+        sort($files, SORT_NATURAL);
 
         foreach (array_slice($files, 0, count($files) - self::MAX_BACKUPS) as $old) {
             @unlink($old);
@@ -372,8 +420,11 @@ final class Content
         }
 
         $tmp = $this->file . '.tmp';
+        $payload = $json . "\n";
 
-        if (@file_put_contents($tmp, $json . "\n") === false || !@rename($tmp, $this->file)) {
+        if (@file_put_contents($tmp, $payload) !== strlen($payload) || !@rename($tmp, $this->file)) {
+            @unlink($tmp);
+
             throw new RuntimeException('Cannot write content file');
         }
     }

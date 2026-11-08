@@ -23,7 +23,7 @@ final class Renderer
         $v = [
             'lang' => $lang,
             'other' => $lang === 'en' ? 'ru' : 'en',
-            'otherHref' => $lang === 'en' ? 'ru.html' : './',
+            'otherHref' => $lang === 'en' ? '/ru.html' : '/',
             'data' => $data,
             'seo' => Seo::build($data, $lang),
             'ui' => $ui,
@@ -53,14 +53,27 @@ final class Renderer
 
         foreach ($data['sections'] as $section) {
             $visible = array_values(array_filter($section['items'], static fn (array $i): bool => $i['visible']));
+            $layout = $section['layout'];
+
+            $cards = match ($layout) {
+                'social' => [],
+                'mixed' => array_values(array_filter($visible, static fn (array $i): bool => $i['type'] !== 'social')),
+                default => $visible,
+            };
+
+            $socials = match ($layout) {
+                'social' => $visible,
+                'mixed' => array_values(array_filter($visible, static fn (array $i): bool => $i['type'] === 'social')),
+                default => [],
+            };
 
             $out[] = [
                 'id' => $section['id'],
                 'label' => $section['label'][$lang],
                 'srLabel' => $section['srLabel'][$lang],
-                'layout' => $section['layout'],
-                'cards' => array_values(array_filter($visible, static fn (array $i): bool => $i['type'] !== 'social')),
-                'socials' => array_values(array_filter($visible, static fn (array $i): bool => $i['type'] === 'social')),
+                'layout' => $layout,
+                'cards' => $cards,
+                'socials' => $socials,
             ];
         }
 
@@ -70,7 +83,7 @@ final class Renderer
     public static function iconHtml(array $item): string
     {
         if (isset($item['logo'])) {
-            return '<img src="' . e($item['logo']) . '" alt="" class="link-logo" width="24" height="24" loading="lazy" decoding="async">';
+            return '<img src="' . e(asset($item['logo'])) . '" alt="" class="link-logo" width="24" height="24" loading="lazy" decoding="async">';
         }
 
         return Icons::render($item['icon']);
@@ -116,9 +129,11 @@ final class Renderer
 
     public static function socialButton(array $item, string $lang): string
     {
-        return '<a href="' . e($item['href']) . '" class="social-btn" data-brand="' . e($item['icon'])
-            . '" target="_blank" rel="noopener noreferrer" aria-label="' . e(tr($item['title'], $lang)) . "\">\n"
-            . '                    ' . Icons::render($item['icon']) . "\n"
+        $brand = isset($item['icon']) ? ' data-brand="' . e($item['icon']) . '"' : '';
+
+        return '<a href="' . e($item['href']) . '" class="social-btn"' . $brand
+            . ' target="_blank" rel="noopener noreferrer" aria-label="' . e(tr($item['title'], $lang)) . "\">\n"
+            . '                    ' . self::iconHtml($item) . "\n"
             . '                </a>';
     }
 }

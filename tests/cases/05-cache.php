@@ -74,15 +74,42 @@ Harness::test('throws when the cache file cannot be written', function (): void 
     }
 });
 
+Harness::test('returns null for an empty cache file', function (): void {
+    $dir = sys_get_temp_dir() . '/bio-cache-' . bin2hex(random_bytes(4));
+
+    try {
+        $cache = new Cache($dir, 'key');
+        $cache->put('en', '<html>');
+        file_put_contents($dir . '/en.html', '');
+
+        assertSame(null, $cache->get('en'));
+    } finally {
+        removeWorkspace($dir);
+    }
+});
+
+Harness::test('throws when the temporary cache file cannot be created', function (): void {
+    $dir = sys_get_temp_dir() . '/bio-cache-' . bin2hex(random_bytes(4));
+
+    try {
+        mkdir($dir . '/en.html.tmp', 0775, true);
+        assertThrows(RuntimeException::class, static fn (): mixed => (new Cache($dir, 'key'))->put('en', 'x'), 'cache file');
+    } finally {
+        removeWorkspace($dir);
+    }
+});
+
 Harness::test('flushes every artefact', function (): void {
     $dir = sys_get_temp_dir() . '/bio-cache-' . bin2hex(random_bytes(4));
 
     try {
         (new Cache($dir, 'key'))->put('en', '<html>');
         (new Cache($dir, 'key'))->put('ru', '<html>');
+        file_put_contents($dir . '/leftover.tmp', 'x');
         Cache::flush($dir);
         assertSame([], glob($dir . '/*.html') ?: []);
         assertSame([], glob($dir . '/*.key') ?: []);
+        assertSame([], glob($dir . '/*.tmp') ?: []);
     } finally {
         removeWorkspace($dir);
     }
@@ -94,6 +121,7 @@ Harness::test('etag is weak and derived from the key', function (): void {
 
     assertMatches('~^W/"[0-9a-f]{40}"$~', $a);
     assertNotSame($a, $b);
+    assertNotSame($a, (new Cache('/tmp', 'one'))->etag('ru'));
 });
 
 Harness::test('key follows the revision and asset mtimes', function (): void {

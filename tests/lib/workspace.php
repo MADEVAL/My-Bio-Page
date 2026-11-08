@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 const APP_DIR = __DIR__ . '/../../app';
+const PUBLIC_DIR = __DIR__ . '/../../public';
 
 /** Create an isolated copy of the app skeleton for one test. */
 function makeWorkspace(): string
@@ -72,10 +73,10 @@ function makeContent(string $root, ?string $file = null, ?string $backupDir = nu
     );
 }
 
-/** Where the auto-provisioned token lands: next to the document root. */
-function outsideTokenPath(string $root): string
+/** Where the auto-provisioned token lands: inside the private app directory. */
+function tokenPath(string $root): string
 {
-    return dirname($root) . '/bio.token';
+    return $root . '/bio.token';
 }
 
 /** Copy of the seed with a single field replaced by path. */

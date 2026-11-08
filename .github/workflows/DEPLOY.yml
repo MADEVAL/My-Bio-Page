@@ -21,6 +21,7 @@ jobs:
       - name: Rsync files to server
         run: |
           set -eu
-          cd app
+          mkdir -p deploy
+          mv app public deploy/
           export SSHPASS=${{ secrets.SSH_PASSWORD_OCAT }}
-          rsync -e "sshpass -e ssh -p 3333 -i $HOME/.ssh/key2 -o StrictHostKeyChecking=no" --archive --compress --update . "${{ secrets.DEPLOY_TARGET_OCAT }}"
+          rsync -e "sshpass -e ssh -p 3333 -i $HOME/.ssh/key2 -o StrictHostKeyChecking=no" --archive --compress --update deploy/ "${{ secrets.DEPLOY_TARGET_OCAT }}"

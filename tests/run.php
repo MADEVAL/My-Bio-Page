@@ -14,9 +14,10 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
 $appDir = realpath(__DIR__ . '/../app');
+$publicDir = realpath(__DIR__ . '/../public');
 
-if ($appDir === false) {
-    fwrite(STDERR, "Cannot locate app/\n");
+if ($appDir === false || $publicDir === false) {
+    fwrite(STDERR, "Cannot locate app/ or public/\n");
     exit(2);
 }
 
@@ -68,7 +69,7 @@ foreach ($coverage as $file => $lines) {
 
 $targets = array_merge(
     glob($appDir . '/src/*.php') ?: [],
-    [$appDir . '/index.php', $appDir . '/mcp.php', $appDir . '/templates/page.php']
+    [$publicDir . '/index.php', $publicDir . '/mcp.php', $appDir . '/templates/page.php']
 );
 
 $totalExecutable = 0;

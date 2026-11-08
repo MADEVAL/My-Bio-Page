@@ -39,6 +39,8 @@ Harness::test('renders the english page', function (): void {
         assertSame(6, substr_count($html, 'class="social-btn"'));
         assertSame(8, substr_count($html, 'class="link-card'));
         assertContains('data-theme-default="system"', $html);
+        assertNotContains('fonts.googleapis.com', $html);
+        assertNotContains('fonts.gstatic.com', $html);
     } finally {
         removeWorkspace($root);
     }
@@ -55,7 +57,8 @@ Harness::test('renders the russian page', function (): void {
         assertContains('Телеграм-канал', $html);
         assertContains('Соцсети', $html);
         assertContains('Написать мне', $html);
-        assertContains('href="./"', $html);
+        assertContains('id="langToggle"', $html);
+        assertContains('href="/"', $html);
     } finally {
         removeWorkspace($root);
     }
@@ -112,10 +115,44 @@ Harness::test('renders logos as images and icons as svg', function (): void {
 
     try {
         $html = rendererFor($root)->render('en');
-        assertContains('src="assets/GLOBUS_WHITE.png"', $html);
+        assertContains('src="/assets/GLOBUS_WHITE.png"', $html);
         assertContains('class="link-logo"', $html);
         assertContains('class="icon-brand"', $html);
         assertContains('class="icon-ui"', $html);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('renders a social item with a logo instead of an icon', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+        unset($data['sections'][3]['items'][2]['icon']);
+        $data['sections'][3]['items'][2]['logo'] = 'assets/bb_mini.png';
+
+        $html = rendererFor($root, $data)->render('en');
+
+        assertContains('class="social-btn"', $html);
+        assertContains('src="/assets/bb_mini.png"', $html);
+        assertNotContains('Undefined array key', $html);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('honours the section layout', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+        $data['sections'][3]['layout'] = 'social';
+
+        $html = rendererFor($root, $data)->render('en');
+
+        assertSame(8, substr_count($html, 'class="social-btn"'));
+        assertSame(6, substr_count($html, 'class="link-card'));
     } finally {
         removeWorkspace($root);
     }

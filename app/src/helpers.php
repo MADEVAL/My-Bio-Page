@@ -16,3 +16,11 @@ function tr(array $field, string $lang): string
 {
     return (string) ($field[$lang] ?? '');
 }
+
+/**
+ * Turn a content-relative asset path into a root-absolute URL.
+ */
+function asset(string $path): string
+{
+    return '/' . ltrim($path, '/');
+}

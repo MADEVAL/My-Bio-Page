@@ -29,7 +29,7 @@ Harness::test('index.php renders the requested language', function (): void {
 
         $html = withoutHeaderWarnings(function (): string {
             ob_start();
-            require APP_DIR . '/index.php';
+            require PUBLIC_DIR . '/index.php';
 
             return (string) ob_get_clean();
         });
@@ -39,12 +39,30 @@ Harness::test('index.php renders the requested language', function (): void {
     }
 });
 
+Harness::test('index.php refuses anything but GET and HEAD', function (): void {
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_SERVER['REQUEST_URI'] = '/';
+
+    try {
+        $body = withoutHeaderWarnings(function (): string {
+            ob_start();
+            require PUBLIC_DIR . '/index.php';
+
+            return (string) ob_get_clean();
+        });
+
+        assertContains('Method Not Allowed', $body);
+    } finally {
+        unset($_SERVER['REQUEST_METHOD']);
+    }
+});
+
 Harness::test('mcp.php refuses anything but POST', function (): void {
     $_SERVER['REQUEST_METHOD'] = 'GET';
 
     $body = withoutHeaderWarnings(function (): string {
         ob_start();
-        require APP_DIR . '/mcp.php';
+        require PUBLIC_DIR . '/mcp.php';
 
         return (string) ob_get_clean();
     });
@@ -58,10 +76,29 @@ Harness::test('mcp.php answers unauthenticated POSTs', function (): void {
 
     $body = withoutHeaderWarnings(function (): string {
         ob_start();
-        require APP_DIR . '/mcp.php';
+        require PUBLIC_DIR . '/mcp.php';
 
         return (string) ob_get_clean();
     });
 
     assertContains('Unauthorized', $body);
+});
+
+Harness::test('mcp.php rejects oversized bodies', function (): void {
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_SERVER['CONTENT_LENGTH'] = '1048577';
+    unset($_SERVER['HTTP_AUTHORIZATION']);
+
+    try {
+        $body = withoutHeaderWarnings(function (): string {
+            ob_start();
+            require PUBLIC_DIR . '/mcp.php';
+
+            return (string) ob_get_clean();
+        });
+
+        assertContains('Payload Too Large', $body);
+    } finally {
+        unset($_SERVER['CONTENT_LENGTH']);
+    }
 });

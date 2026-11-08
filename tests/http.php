@@ -15,23 +15,34 @@ const TOKEN = 'integration-token';
 require __DIR__ . '/lib/harness.php';
 require __DIR__ . '/lib/workspace.php';
 
-function copyApp(string $dest): void
+function copyDir(string $source, string $dest, array $skip = []): void
 {
-    $source = realpath(APP_DIR);
+    $real = realpath($source);
 
-    if ($source === false) {
-        throw new RuntimeException('app dir is missing');
+    if ($real === false) {
+        throw new RuntimeException('Directory is missing: ' . $source);
     }
 
-    $prefix = rtrim($source, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    if (!is_dir($dest)) {
+        mkdir($dest, 0775, true);
+    }
+
+    $prefix = rtrim($real, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
     $items = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
+        new RecursiveDirectoryIterator($real, FilesystemIterator::SKIP_DOTS),
         RecursiveIteratorIterator::SELF_FIRST
     );
 
     foreach ($items as $item) {
-        $relative = substr($item->getPathname(), strlen($prefix));
-        $target = $dest . '/' . str_replace(DIRECTORY_SEPARATOR, '/', $relative);
+        $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($item->getPathname(), strlen($prefix)));
+
+        foreach ($skip as $prefixToSkip) {
+            if (str_starts_with($relative, $prefixToSkip)) {
+                continue 2;
+            }
+        }
+
+        $target = $dest . '/' . $relative;
 
         if ($item->isDir()) {
             if (!is_dir($target)) {
@@ -41,6 +52,19 @@ function copyApp(string $dest): void
             copy($item->getPathname(), $target);
         }
     }
+}
+
+function copyApp(string $root): void
+{
+    copyDir(APP_DIR, $root . '/app', [
+        'content/site.json',
+        'content/backups/',
+        'content/.audit.jsonl',
+        'content/site.json.lock',
+        'cache/',
+        'bio.token',
+    ]);
+    copyDir(PUBLIC_DIR, $root . '/public');
 }
 
 /** @return array{status: int, headers: array<string, string>, body: string} */
@@ -104,11 +128,11 @@ mkdir($root, 0775, true);
 copyApp($root);
 
 $php = PHP_BINARY;
-$command = [$php, '-d', 'display_errors=1', '-S', HOST . ':' . PORT, '-t', $root, __DIR__ . '/router.php'];
+$command = [$php, '-d', 'display_errors=1', '-S', HOST . ':' . PORT, '-t', $root . '/public', __DIR__ . '/router.php'];
 
 $descriptors = [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']];
 $environment = getenv();
-$environment['BIO_ROOT'] = $root;
+$environment['BIO_ROOT'] = $root . '/public';
 $environment['MCP_TOKEN'] = TOKEN;
 
 $server = proc_open($command, $descriptors, $pipes, null, $environment);
@@ -229,6 +253,10 @@ try {
     });
 
     Harness::test('MCP edits are live and publish refreshes the cache', function (): void {
+        $before = rpc('tools/call', ['name' => 'get_content', 'arguments' => []]);
+        $beforeContent = json_decode($before['json']['result']['content'][0]['text'], true);
+        $initialRev = $beforeContent['rev'];
+
         $created = rpc('tools/call', [
             'name' => 'create_link',
             'arguments' => [
@@ -250,7 +278,7 @@ try {
         $payload = json_decode($published['json']['result']['content'][0]['text'], true);
 
         assertSame(200, $published['status']);
-        assertSame(2, $payload['rev']);
+        assertSame($initialRev + 1, $payload['rev']);
         assertCount(2, $payload['urls']);
         assertContains('HTTP Test', request('GET', '/')['body']);
     });

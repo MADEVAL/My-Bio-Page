@@ -14,11 +14,13 @@ final class App
 
     private readonly Content $content;
     private readonly Renderer $renderer;
+    private readonly string $publicRoot;
 
     /** @param array<string, string>|null $config */
     public function __construct(private readonly string $root, ?array $config = null)
     {
         $this->config = $config ?? self::readEnv($root);
+        $this->publicRoot = dirname($root) . '/public';
         $this->content = new Content(
             $root . '/content/site.json',
             $root . '/content/site.seed.json',
@@ -33,7 +35,11 @@ final class App
         try {
             return $this->buildPage($uri, $ifNoneMatch);
         } catch (\Throwable $e) {
-            return new Response(500, ['Content-Type' => 'text/plain; charset=utf-8'], "Internal Server Error\n");
+            return new Response(
+                500,
+                ['Content-Type' => 'text/plain; charset=utf-8'] + $this->securityHeaders(),
+                "Internal Server Error\n"
+            );
         }
     }
 
@@ -60,9 +66,23 @@ final class App
                 [
                     'Content-Type' => 'application/xml; charset=utf-8',
                     'Cache-Control' => 'public, max-age=300',
-                    'X-Content-Type-Options' => 'nosniff',
-                ],
+                ] + $this->securityHeaders(),
                 Seo::sitemap($this->content->load())
+            );
+        }
+
+        if ($path === '/robots.txt') {
+            $data = $this->content->load();
+            $base = rtrim($data['settings']['siteUrl'], '/');
+            $body = "User-agent: *\nAllow: /\nDisallow: /mcp\nDisallow: /mcp.php\n\nSitemap: {$base}/sitemap.xml\n";
+
+            return new Response(
+                200,
+                [
+                    'Content-Type' => 'text/plain; charset=utf-8',
+                    'Cache-Control' => 'public, max-age=300',
+                ] + $this->securityHeaders(),
+                $body
             );
         }
 
@@ -73,37 +93,79 @@ final class App
         };
 
         if ($lang === null) {
-            return new Response(404, ['Content-Type' => 'text/plain; charset=utf-8'], "Not found\n");
+            return new Response(
+                404,
+                ['Content-Type' => 'text/plain; charset=utf-8'] + $this->securityHeaders(),
+                "Not found\n"
+            );
         }
 
         $data = $this->content->load();
-        $cache = new Cache($this->root . '/cache', Cache::keyFor($data, [
-            $this->root . '/templates/page.php',
-            $this->root . '/styles.css',
-            $this->root . '/script.js',
-        ]));
+        $cache = new Cache($this->root . '/cache', Cache::keyFor($data, $this->cacheInputs()));
 
         $html = $cache->get($lang);
 
         if ($html === null) {
             $html = $this->renderer->render($lang);
-            $cache->put($lang, $html);
+
+            try {
+                $cache->put($lang, $html);
+            } catch (\Throwable) {
+                // The cache is an optimisation. A read-only or full cache
+                // directory must never take the public page down.
+            }
         }
 
-        $etag = $cache->etag();
+        $etag = $cache->etag($lang);
         $headers = [
             'Content-Type' => 'text/html; charset=utf-8',
             'Content-Language' => $lang,
             'Cache-Control' => 'public, max-age=60, must-revalidate',
             'ETag' => $etag,
-            'X-Content-Type-Options' => 'nosniff',
-        ];
+        ] + $this->securityHeaders();
 
         if ($ifNoneMatch !== null && trim($ifNoneMatch) === $etag) {
             return new Response(304, $headers, '');
         }
 
         return new Response(200, $headers, $html);
+    }
+
+    /**
+     * Everything that can change the rendered HTML or its metadata. Source
+     * files are folded in so a deploy that touches only PHP logic does not
+     * leave an old page in the cache.
+     *
+     * @return list<string>
+     */
+    private function cacheInputs(): array
+    {
+        $files = [
+            $this->root . '/templates/page.php',
+            $this->root . '/content/site.seed.json',
+            $this->publicRoot . '/styles.css',
+            $this->publicRoot . '/script.js',
+        ];
+
+        foreach (glob($this->root . '/src/*.php') ?: [] as $source) {
+            $files[] = $source;
+        }
+
+        return $files;
+    }
+
+    /** @return array<string, string> */
+    private function securityHeaders(): array
+    {
+        return [
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
+            'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
+            'Cross-Origin-Opener-Policy' => 'same-origin',
+            'Strict-Transport-Security' => 'max-age=31536000; includeSubDomains',
+            'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+        ];
     }
 
     /**
@@ -134,56 +196,22 @@ final class App
      * Token resolution, safest first:
      *   1. MCP_TOKEN from the process environment (php-fpm pool env[])
      *   2. BIO_TOKEN_FILE, an explicit path
-     *   3. .env inside the document root (legacy, only safe if dotfiles are denied)
-     *   4. bio.token next to the document root, generated on first use
+     *   3. bio.token inside the private application directory
      */
     private static function readToken(string $root): string
     {
         $fromEnv = getenv('MCP_TOKEN');
 
-        if (is_string($fromEnv) && $fromEnv !== '') {
-            return $fromEnv;
+        if (is_string($fromEnv) && trim($fromEnv) !== '') {
+            return trim($fromEnv);
         }
 
         $custom = getenv('BIO_TOKEN_FILE');
 
-        if (is_string($custom) && $custom !== '') {
-            return (new Token($custom))->ensure();
+        if (is_string($custom) && trim($custom) !== '') {
+            return (new Token(trim($custom)))->ensure();
         }
 
-        $legacy = self::legacyToken($root);
-
-        if ($legacy !== '') {
-            return $legacy;
-        }
-
-        return (new Token(dirname($root) . '/bio.token'))->ensure();
-    }
-
-    private static function legacyToken(string $root): string
-    {
-        $file = $root . '/.env';
-
-        if (!is_file($file)) {
-            return '';
-        }
-
-        $token = '';
-
-        foreach (file($file, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
-            $line = trim($line);
-
-            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
-                continue;
-            }
-
-            [$key, $value] = explode('=', $line, 2);
-
-            if (trim($key) === 'MCP_TOKEN') {
-                $token = trim($value, " \t\"'");
-            }
-        }
-
-        return $token;
+        return (new Token($root . '/bio.token'))->ensure();
     }
 }

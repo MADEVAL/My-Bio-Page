@@ -7,8 +7,6 @@ namespace Bio;
  * Inline SVG registry. Two families:
  *   brand - filled logos (simple-icons, CC0)
  *   ui    - stroked interface icons (lucide, ISC)
- *
- * Generator: tests/tools/icons.php (kept out of the runtime path).
  */
 final class Icons
 {

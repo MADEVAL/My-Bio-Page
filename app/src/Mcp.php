@@ -15,6 +15,8 @@ final class Mcp
 {
     private const PROTOCOLS = ['2025-06-18', '2025-03-26'];
 
+    private string $actor = 'mcp';
+
     public function __construct(
         private readonly Content $content,
         private readonly Renderer $renderer,
@@ -33,6 +35,7 @@ final class Mcp
             );
         }
 
+        $this->actor = $actor;
         $payload = json_decode($body, true);
 
         if (!is_array($payload) || ($payload['jsonrpc'] ?? null) !== '2.0' || !is_string($payload['method'] ?? null)) {
@@ -182,7 +185,7 @@ final class Mcp
         $sectionId = (string) ($args['section'] ?? '');
         $created = null;
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($args, $sectionId, &$created): array {
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $sectionId, &$created): array {
             $index = null;
 
             foreach ($d['sections'] as $i => $section) {
@@ -227,7 +230,7 @@ final class Mcp
     {
         $id = $this->requireId($args);
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($args, $id): array {
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $id): array {
             [$s, $i] = $this->locate($d, $id);
             $item = $d['sections'][$s]['items'][$i];
 
@@ -254,7 +257,7 @@ final class Mcp
         $id = $this->requireId($args);
         $target = (string) ($args['section'] ?? '');
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($args, $id, $target): array {
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $id, $target): array {
             [$s, $i] = $this->locate($d, $id);
             $item = $d['sections'][$s]['items'][$i];
             array_splice($d['sections'][$s]['items'], $i, 1);
@@ -290,7 +293,7 @@ final class Mcp
             throw new InvalidArgumentException('visible must be a boolean');
         }
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($args, $id): array {
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $id): array {
             [$s, $i] = $this->locate($d, $id);
             $d['sections'][$s]['items'][$i]['visible'] = $args['visible'];
 
@@ -303,9 +306,13 @@ final class Mcp
     private function deleteLink(array $args): array
     {
         $id = $this->requireId($args);
-        $hard = (bool) ($args['hard'] ?? false);
+        $hard = $args['hard'] ?? false;
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($id, $hard): array {
+        if (!is_bool($hard)) {
+            throw new InvalidArgumentException('hard must be a boolean');
+        }
+
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($id, $hard): array {
             [$s, $i] = $this->locate($d, $id);
 
             if ($hard) {
@@ -327,9 +334,13 @@ final class Mcp
         $allowed = ['email', 'themeDefault', 'footerStart', 'ga4'];
         $applied = [];
 
-        $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($patch, $allowed, &$applied): array {
+        $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($patch, $allowed, &$applied): array {
             foreach ($allowed as $key) {
                 if (array_key_exists($key, $patch)) {
+                    if ($key === 'email' && is_string($patch[$key])) {
+                        $d = $this->syncEmail($d, (string) $d['settings']['email'], $patch[$key]);
+                    }
+
                     $d['settings'][$key] = $patch[$key];
                     $applied[$key] = $patch[$key];
                 }
@@ -339,6 +350,42 @@ final class Mcp
         });
 
         return ['rev' => $data['rev'], 'applied' => $applied];
+    }
+
+    /**
+     * Keep the visible contact card and the copy-failure copy in sync with
+     * settings.email, so structured data and the page never disagree.
+     *
+     * @return array<string, mixed>
+     */
+    private function syncEmail(array $data, string $old, string $new): array
+    {
+        foreach ($data['sections'] as $s => $section) {
+            foreach ($section['items'] as $i => $item) {
+                if ($item['type'] !== 'email') {
+                    continue;
+                }
+
+                $item['href'] = 'mailto:' . $new;
+
+                foreach (['en', 'ru'] as $lang) {
+                    $subtitle = (string) ($item['subtitle'][$lang] ?? '');
+                    $item['subtitle'][$lang] = $subtitle === '' ? $new : str_replace($old, $new, $subtitle);
+                }
+
+                $data['sections'][$s]['items'][$i] = $item;
+            }
+        }
+
+        foreach (['en', 'ru'] as $lang) {
+            $data['ui'][$lang]['copyFailed'] = str_replace(
+                $old,
+                $new,
+                (string) ($data['ui'][$lang]['copyFailed'] ?? '')
+            );
+        }
+
+        return $data;
     }
 
     private function preview(array $args): array
@@ -390,9 +437,11 @@ final class Mcp
 
         if ($slug === '') {
             $slug = 'link';
+        } elseif (preg_match('~^[a-z]~', $slug) !== 1) {
+            $slug = 'link-' . $slug;
         }
 
-        $slug = substr($slug, 0, 40);
+        $slug = substr($slug, 0, 41);
         $taken = [];
 
         foreach ($data['sections'] as $section) {
@@ -407,11 +456,13 @@ final class Mcp
 
         $suffix = 2;
 
-        while (isset($taken[$slug . '-' . $suffix])) {
+        do {
+            $base = rtrim(substr($slug, 0, 40 - strlen((string) $suffix)), '-');
+            $candidate = ($base === '' ? 'link' : $base) . '-' . $suffix;
             $suffix++;
-        }
+        } while (isset($taken[$candidate]));
 
-        return $slug . '-' . $suffix;
+        return $candidate;
     }
 
     private function requireId(array $args): string
@@ -432,11 +483,11 @@ final class Mcp
 
     private function authorized(?string $header): bool
     {
-        if ($header === null || $this->token === '' || !str_starts_with($header, 'Bearer ')) {
+        if ($header === null || $this->token === '' || preg_match('~^Bearer\s+(.+)$~i', trim($header), $match) !== 1) {
             return false;
         }
 
-        return hash_equals($this->token, substr($header, 7));
+        return hash_equals($this->token, $match[1]);
     }
 
     private function error(mixed $id, int $code, string $message): Response
@@ -449,7 +500,7 @@ final class Mcp
     {
         return new Response(
             $status,
-            ['Content-Type' => 'application/json; charset=utf-8'] + $extra,
+            ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff'] + $extra,
             $this->encode($payload)
         );
     }
@@ -472,7 +523,7 @@ final class Mcp
             ],
             [
                 'name' => 'get_schema',
-                'description' => 'Read the JSON Schema of the content tree before editing it.',
+                'description' => 'Read the complete JSON Schema of the content tree before editing it.',
                 'inputSchema' => ['type' => 'object', 'properties' => (object) []],
             ],
             [
@@ -482,7 +533,7 @@ final class Mcp
             ],
             [
                 'name' => 'list_links',
-                'description' => 'List links, optionally filtered by section, visibility or language.',
+                'description' => 'List links, optionally filtered by section or visibility. lang localizes titles.',
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => [
@@ -574,7 +625,7 @@ final class Mcp
             ],
             [
                 'name' => 'update_settings',
-                'description' => 'Update email, themeDefault, footerStart or the GA4 measurement ID.',
+                'description' => 'Update email (including the visible contact card), themeDefault, footerStart or the GA4 measurement ID.',
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => [
@@ -614,33 +665,62 @@ final class Mcp
                     'type' => 'object',
                     'required' => ['siteUrl', 'email', 'themeDefault', 'footerStart', 'photo', 'ogImage', 'personUrl', 'worksFor', 'lastmod'],
                     'properties' => [
-                        'siteUrl' => ['type' => 'string', 'description' => 'https URL, no trailing slash'],
+                        'siteUrl' => ['type' => 'string', 'pattern' => '^https://', 'description' => 'https URL, no trailing slash'],
                         'email' => ['type' => 'string', 'format' => 'email'],
                         'themeDefault' => ['type' => 'string', 'enum' => Content::THEMES],
-                        'footerStart' => ['type' => 'integer'],
-                        'ga4' => ['type' => 'string', 'description' => 'GA4 measurement ID like G-XXXXXXXXXX, empty disables analytics'],
-                        'photo' => ['type' => 'string'],
-                        'ogImage' => ['type' => 'string'],
-                        'personUrl' => ['type' => 'string'],
-                        'worksFor' => ['type' => 'object', 'properties' => ['name' => ['type' => 'string'], 'url' => ['type' => 'string']]],
+                        'footerStart' => ['type' => 'integer', 'minimum' => 1900, 'maximum' => 9999],
+                        'ga4' => ['type' => 'string', 'pattern' => '^(|G-[A-Z0-9]{10})$', 'description' => 'GA4 measurement ID like G-XXXXXXXXXX; empty disables analytics'],
+                        'photo' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$'],
+                        'ogImage' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$'],
+                        'personUrl' => ['type' => 'string', 'format' => 'uri', 'minLength' => 1],
+                        'worksFor' => [
+                            'type' => 'object',
+                            'required' => ['name', 'url'],
+                            'properties' => [
+                                'name' => ['type' => 'string', 'minLength' => 1],
+                                'url' => ['type' => 'string', 'format' => 'uri', 'minLength' => 1],
+                            ],
+                        ],
                         'lastmod' => ['type' => 'string', 'pattern' => '^\\d{4}-\\d{2}-\\d{2}$'],
                     ],
                 ],
                 'meta' => [
                     'type' => 'object',
-                    'description' => 'Per language: title, description, ogAlt, siteName, jobTitle, personName, alternateName',
+                    'required' => ['en', 'ru'],
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'en' => self::localizedObject(['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']),
+                        'ru' => self::localizedObject(['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']),
+                    ],
                 ],
-                'profile' => ['type' => 'object', 'description' => 'Per language: name, role, bio, alt'],
-                'ui' => ['type' => 'object', 'description' => 'Per language: switchLang, copyEmail, themeToLight, themeToDark, copied, copyFailed, controls'],
+                'profile' => [
+                    'type' => 'object',
+                    'required' => ['en', 'ru'],
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'en' => self::localizedObject(['name', 'role', 'bio', 'alt']),
+                        'ru' => self::localizedObject(['name', 'role', 'bio', 'alt']),
+                    ],
+                ],
+                'ui' => [
+                    'type' => 'object',
+                    'required' => ['en', 'ru'],
+                    'additionalProperties' => false,
+                    'properties' => [
+                        'en' => self::localizedObject(['switchLang', 'copyEmail', 'themeToLight', 'themeToDark', 'copied', 'copyFailed', 'controls']),
+                        'ru' => self::localizedObject(['switchLang', 'copyEmail', 'themeToLight', 'themeToDark', 'copied', 'copyFailed', 'controls']),
+                    ],
+                ],
                 'sections' => [
                     'type' => 'array',
+                    'minItems' => 1,
                     'items' => [
                         'type' => 'object',
                         'required' => ['id', 'label', 'srLabel', 'layout', 'order', 'items'],
                         'properties' => [
                             'id' => ['type' => 'string', 'pattern' => '^[a-z][a-z0-9-]{0,40}$'],
-                            'label' => ['type' => 'object', 'description' => 'en/ru strings or null for a visually hidden heading'],
-                            'srLabel' => ['type' => 'object', 'description' => 'en/ru strings, always required'],
+                            'label' => self::localizedField(false, true),
+                            'srLabel' => self::localizedField(),
                             'layout' => ['type' => 'string', 'enum' => Content::LAYOUTS],
                             'order' => ['type' => 'integer', 'minimum' => 1],
                             'items' => [
@@ -649,15 +729,15 @@ final class Mcp
                                     'type' => 'object',
                                     'required' => ['id', 'type', 'href', 'order', 'visible', 'title'],
                                     'properties' => [
-                                        'id' => ['type' => 'string'],
+                                        'id' => ['type' => 'string', 'pattern' => '^[a-z][a-z0-9-]{0,40}$'],
                                         'type' => ['type' => 'string', 'enum' => Content::ITEM_TYPES],
-                                        'href' => ['type' => 'string'],
+                                        'href' => ['type' => 'string', 'pattern' => '^(https?://|mailto:)[^\\s]+$'],
                                         'icon' => ['type' => 'string', 'enum' => Icons::keys()],
-                                        'logo' => ['type' => 'string'],
+                                        'logo' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$'],
                                         'order' => ['type' => 'integer', 'minimum' => 1],
                                         'visible' => ['type' => 'boolean'],
-                                        'title' => ['type' => 'object'],
-                                        'subtitle' => ['type' => 'object'],
+                                        'title' => self::localizedField(),
+                                        'subtitle' => self::localizedField(true, true),
                                     ],
                                 ],
                             ],
@@ -665,6 +745,38 @@ final class Mcp
                     ],
                 ],
             ],
+        ];
+    }
+
+    /** @param list<string> $fields */
+    private static function localizedObject(array $fields): array
+    {
+        $properties = [];
+
+        foreach ($fields as $field) {
+            $properties[$field] = ['type' => 'string', 'minLength' => 1];
+        }
+
+        return [
+            'type' => 'object',
+            'required' => $fields,
+            'additionalProperties' => false,
+            'properties' => $properties,
+        ];
+    }
+
+    private static function localizedField(bool $allowEmpty = false, bool $allowNull = false): array
+    {
+        $value = [
+            'type' => $allowNull ? ['string', 'null'] : 'string',
+            'minLength' => $allowEmpty ? 0 : 1,
+        ];
+
+        return [
+            'type' => 'object',
+            'required' => ['en', 'ru'],
+            'additionalProperties' => false,
+            'properties' => ['en' => $value, 'ru' => $value],
         ];
     }
 }

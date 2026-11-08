@@ -88,7 +88,7 @@ Harness::group('Token: wiring');
 
 Harness::test('App provisions the token on first use', function (): void {
     $root = makeWorkspace();
-    $tokenFile = outsideTokenPath($root);
+    $tokenFile = tokenPath($root);
 
     try {
         @unlink($tokenFile);

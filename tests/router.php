@@ -2,17 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Dev router for `php -S`. In production nginx does this job
- * (see deploy/nginx-bio.conf); the deny list below mirrors it.
+ * Dev router for `php -S`. In production nginx/Apache points at public/;
+ * everything private lives one level above it.
  */
-$root = getenv('BIO_ROOT') ?: dirname(__DIR__) . '/app';
+$root = getenv('BIO_ROOT') ?: dirname(__DIR__) . '/public';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $path = is_string($path) ? $path : '/';
 
-$denied = ['content', 'src', 'templates', 'cache', 'tests', 'deploy'];
-$segment = explode('/', trim($path, '/'))[0] ?? '';
-
-if (in_array($segment, $denied, true) || str_starts_with($path, '/.')) {
+if (str_starts_with($path, '/.')) {
     http_response_code(404);
     echo "Not found\n";
 

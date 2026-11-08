@@ -6,9 +6,9 @@ namespace Bio;
 /**
  * Lazily provisions the MCP token.
  *
- * The file lives outside the document root, so a plain web server cannot
- * serve it. Creation is automatic: no shell, no setup step, no manual key
- * generation.
+ * The file lives in the private application directory, one level above the
+ * public document root, so a plain web server cannot serve it. Creation is
+ * automatic: no shell, no setup step, no manual key generation.
  */
 final class Token
 {
@@ -20,7 +20,26 @@ final class Token
     {
         $existing = $this->read();
 
-        return $existing !== '' ? $existing : $this->create();
+        if ($existing !== '') {
+            return $existing;
+        }
+
+        $lock = @fopen($this->file . '.lock', 'c');
+
+        if ($lock === false) {
+            return $this->create();
+        }
+
+        flock($lock, LOCK_EX);
+
+        try {
+            $existing = $this->read();
+
+            return $existing !== '' ? $existing : $this->create();
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
     private function read(): string
@@ -29,7 +48,9 @@ final class Token
             return '';
         }
 
-        return trim((string) file_get_contents($this->file));
+        @chmod($this->file, 0600);
+
+        return trim((string) @file_get_contents($this->file));
     }
 
     private function create(): string
@@ -42,14 +63,30 @@ final class Token
 
         $token = bin2hex(random_bytes(32));
         $tmp = $this->file . '.tmp';
+        $payload = $token . "\n";
 
-        if (@file_put_contents($tmp, $token . "\n") === false) {
+        if (is_file($tmp)) {
+            @unlink($tmp);
+        }
+
+        $oldUmask = umask(0077);
+        $handle = @fopen($tmp, 'xb');
+        umask($oldUmask);
+
+        if ($handle === false) {
             return '';
         }
 
-        @chmod($tmp, 0600);
+        $written = fwrite($handle, $payload);
+        $flushed = fflush($handle);
+        fclose($handle);
 
-        if (!@rename($tmp, $this->file)) {
+        if (
+            $written !== strlen($payload)
+            || $flushed === false
+            || !@chmod($tmp, 0600)
+            || !@rename($tmp, $this->file)
+        ) {
             @unlink($tmp);
 
             return '';

@@ -8,7 +8,17 @@ app/content/*.tmp
 # Rendered HTML cache
 app/cache/
 
-# Secrets: the token belongs next to the document root, not inside it
-app/.env
-bio.token
+# Secrets: the token lives in the private app directory, never in public/
 app/bio.token
+app/bio.token.lock
+bio.token
+
+# Local tooling
+node_modules/
+package-lock.json
+app/.env
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp

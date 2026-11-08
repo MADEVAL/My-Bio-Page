@@ -1,0 +1,27 @@
+# Apache front controller for the public document root.
+# The application itself lives one level above this directory.
+
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # /mcp is an alias for the real endpoint.
+    RewriteRule ^mcp/?$ mcp.php [L,QSA]
+
+    # Existing files and directories are served directly. Everything else
+    # (/, /ru.html, /sitemap.xml, ...) goes through the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
+
+# Never expose dotfiles or editor/backup debris from the document root.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "(^#.*#|\.(bak|dist|orig|swp|tmp|log|env))$">
+    Require all denied
+</FilesMatch>

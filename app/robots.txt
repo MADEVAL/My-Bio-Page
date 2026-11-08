@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /mcp
-Disallow: /mcp.php
-
-Sitemap: https://bio.leonidov.dev/sitemap.xml

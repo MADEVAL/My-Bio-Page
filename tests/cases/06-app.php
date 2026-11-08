@@ -18,6 +18,8 @@ Harness::test('serves the english page with cache headers', function (): void {
         assertSame('en', $response->headers['Content-Language']);
         assertContains('public, max-age=60', $response->headers['Cache-Control']);
         assertMatches('~^W/"[0-9a-f]{40}"$~', $response->headers['ETag']);
+        assertSame('DENY', $response->headers['X-Frame-Options']);
+        assertContains("default-src 'self'", $response->headers['Content-Security-Policy']);
         assertTrue(is_file($root . '/cache/en.html'));
     } finally {
         removeWorkspace($root);
@@ -40,6 +42,20 @@ Harness::test('answers 304 for a matching etag', function (): void {
     }
 });
 
+Harness::test('serves the page when the cache cannot be written', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        mkdir($root . '/cache/en.html', 0775, true);
+        $response = (new App($root, ['mcpToken' => 'secret']))->page('/');
+
+        assertSame(200, $response->status);
+        assertContains('Yevhen Leonidov', $response->body);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('serves the russian page and its aliases', function (): void {
     $root = makeWorkspace();
 
@@ -55,6 +71,8 @@ Harness::test('serves the russian page and its aliases', function (): void {
         foreach (['/', '/index.html', '/index.php'] as $uri) {
             assertSame(200, $app->page($uri)->status, $uri);
         }
+
+        assertNotSame($app->page('/')->headers['ETag'], $app->page('/ru.html')->headers['ETag']);
     } finally {
         removeWorkspace($root);
     }
@@ -91,6 +109,21 @@ Harness::test('serves a generated sitemap', function (): void {
     }
 });
 
+Harness::test('serves a generated robots.txt', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $response = (new App($root, ['mcpToken' => 'secret']))->page('/robots.txt');
+
+        assertSame(200, $response->status);
+        assertSame('text/plain; charset=utf-8', $response->headers['Content-Type']);
+        assertContains('Disallow: /mcp', $response->body);
+        assertContains('Sitemap: https://bio.leonidov.dev/sitemap.xml', $response->body);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('returns 404 for unknown routes', function (): void {
     $root = makeWorkspace();
 
@@ -120,34 +153,31 @@ Harness::test('returns 500 instead of leaking a stack trace', function (): void 
 
 Harness::group('App: configuration');
 
-Harness::test('reads the token from .env and ignores noise', function (): void {
+Harness::test('ignores a legacy .env and provisions the app token', function (): void {
     $root = makeWorkspace();
+    $tokenFile = tokenPath($root);
 
     try {
-        // Higher-precedence sources must not interfere with this test.
-        @unlink(outsideTokenPath($root));
+        @unlink($tokenFile);
         putenv('MCP_TOKEN');
         putenv('BIO_TOKEN_FILE');
-
-        file_put_contents($root . '/.env', implode("\n", [
-            '# comment',
-            '',
-            'NOT_A_TOKEN=1',
-            'MCP_TOKEN="from-env-file"',
-        ]));
+        file_put_contents($root . '/.env', "MCP_TOKEN=from-env-file\n");
 
         $app = new App($root);
+        assertTrue(is_file($tokenFile));
 
-        assertSame(200, $app->mcp('', 'Bearer from-env-file')->status);
-        assertSame(401, $app->mcp('', 'Bearer wrong')->status);
+        $token = trim((string) file_get_contents($tokenFile));
+        assertSame(200, $app->mcp('', 'Bearer ' . $token)->status);
+        assertSame(401, $app->mcp('', 'Bearer from-env-file')->status);
     } finally {
+        @unlink($tokenFile);
         removeWorkspace($root);
     }
 });
 
-Harness::test('reads the token file next to the document root', function (): void {
+Harness::test('reads the token file inside the app directory', function (): void {
     $root = makeWorkspace();
-    $tokenFile = outsideTokenPath($root);
+    $tokenFile = tokenPath($root);
 
     try {
         putenv('MCP_TOKEN');
@@ -166,7 +196,7 @@ Harness::test('reads the token file next to the document root', function (): voi
 
 Harness::test('the environment beats the token file', function (): void {
     $root = makeWorkspace();
-    $tokenFile = outsideTokenPath($root);
+    $tokenFile = tokenPath($root);
 
     try {
         putenv('BIO_TOKEN_FILE');
@@ -179,28 +209,6 @@ Harness::test('the environment beats the token file', function (): void {
         assertSame(401, $app->mcp('', 'Bearer file-token')->status);
     } finally {
         putenv('MCP_TOKEN');
-        @unlink($tokenFile);
-        removeWorkspace($root);
-    }
-});
-
-Harness::test('ignores a .env without MCP_TOKEN and provisions one', function (): void {
-    $root = makeWorkspace();
-    $tokenFile = outsideTokenPath($root);
-
-    try {
-        @unlink($tokenFile);
-        putenv('MCP_TOKEN');
-        putenv('BIO_TOKEN_FILE');
-        file_put_contents($root . '/.env', "OTHER=1\n");
-
-        $app = new App($root);
-        assertTrue(is_file($tokenFile));
-
-        $token = trim((string) file_get_contents($tokenFile));
-        assertSame(200, $app->mcp('', 'Bearer ' . $token)->status);
-        assertSame(401, $app->mcp('', 'Bearer anything')->status);
-    } finally {
         @unlink($tokenFile);
         removeWorkspace($root);
     }

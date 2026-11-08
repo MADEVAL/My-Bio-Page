@@ -71,7 +71,10 @@ Harness::test('accepts the configured token', function (): void {
     $root = makeWorkspace();
 
     try {
-        assertSame(200, rpc(mcpApp($root), 'ping')['status']);
+        $app = mcpApp($root);
+        assertSame(200, rpc($app, 'ping')['status']);
+        assertSame(200, rpc($app, 'ping', null, 1, 'bearer secret')['status']);
+        assertSame(200, rpc($app, 'ping', null, 1, 'BEARER secret')['status']);
     } finally {
         removeWorkspace($root);
     }
@@ -218,8 +221,15 @@ Harness::test('returns the content schema', function (): void {
 
     try {
         $result = callTool(mcpApp($root), 'get_schema');
-        assertSame('object', $result['data']['type']);
-        assertTrue(in_array('sections', $result['data']['required'], true));
+        $schema = $result['data'];
+
+        assertSame('object', $schema['type']);
+        assertTrue(in_array('sections', $schema['required'], true));
+        assertSame('^(|G-[A-Z0-9]{10})$', $schema['properties']['settings']['properties']['ga4']['pattern']);
+        assertSame(['name', 'url'], $schema['properties']['settings']['properties']['worksFor']['required']);
+        $item = $schema['properties']['sections']['items']['properties']['items']['items']['properties'];
+        assertSame('^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$', $item['logo']['pattern']);
+        assertSame('^(https?://|mailto:)[^\\s]+$', $item['href']['pattern']);
     } finally {
         removeWorkspace($root);
     }
@@ -322,6 +332,35 @@ Harness::test('falls back to a generic id', function (): void {
         ]);
 
         assertSame('link', $result['data']['id']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('keeps generated ids valid at the length boundary', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+        $long = str_repeat('a', 45);
+        $args = [
+            'section' => 'content',
+            'href' => 'https://example.com/long',
+            'icon' => 'globe',
+            'title' => ['en' => 'Long', 'ru' => 'Long'],
+        ];
+
+        $first = callTool($app, 'create_link', ['id' => $long] + $args);
+        $second = callTool($app, 'create_link', ['id' => $long] + $args);
+        $numeric = callTool($app, 'create_link', ['id' => '123'] + $args);
+
+        assertFalse($first['isError'], $first['text']);
+        assertFalse($second['isError'], $second['text']);
+        assertFalse($numeric['isError'], $numeric['text']);
+        assertMatches('~^[a-z][a-z0-9-]{0,40}$~', $first['data']['id']);
+        assertMatches('~^[a-z][a-z0-9-]{0,40}$~', $second['data']['id']);
+        assertSame('link-123', $numeric['data']['id']);
+        assertNotSame($first['data']['id'], $second['data']['id']);
     } finally {
         removeWorkspace($root);
     }
@@ -479,6 +518,11 @@ Harness::test('soft deletes by default and hard deletes on request', function ()
         $hard = callTool($app, 'delete_link', ['id' => 'medium', 'hard' => true]);
         assertTrue($hard['data']['hard']);
         assertCount(1, callTool($app, 'list_links', ['section' => 'content'])['data']['items']);
+
+        $string = callTool($app, 'delete_link', ['id' => 'website', 'hard' => 'false']);
+        assertTrue($string['isError']);
+        assertContains('hard must be a boolean', $string['text']);
+        assertCount(1, callTool($app, 'list_links', ['section' => 'content'])['data']['items']);
     } finally {
         removeWorkspace($root);
     }
@@ -511,6 +555,39 @@ Harness::test('rejects invalid settings', function (): void {
         $result = callTool(mcpApp($root), 'update_settings', ['email' => 'nope']);
         assertTrue($result['isError']);
         assertContains('settings.email', $result['text']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('keeps the visible email in sync with settings.email', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+        $result = callTool($app, 'update_settings', ['email' => 'new@example.com']);
+        assertFalse($result['isError'], $result['text']);
+
+        $content = callTool($app, 'get_content')['data']['content'];
+        $emailItem = null;
+
+        foreach ($content['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['type'] === 'email') {
+                    $emailItem = $item;
+                }
+            }
+        }
+
+        assertSame('mailto:new@example.com', $emailItem['href']);
+        assertSame('new@example.com', $emailItem['subtitle']['en']);
+        assertSame('new@example.com', $emailItem['subtitle']['ru']);
+        assertContains('new@example.com', $content['ui']['en']['copyFailed']);
+        assertContains('new@example.com', $content['ui']['ru']['copyFailed']);
+
+        $html = callTool($app, 'preview')['data']['html'];
+        assertContains('data-email="new@example.com"', $html);
+        assertContains('mailto:new@example.com', $html);
     } finally {
         removeWorkspace($root);
     }

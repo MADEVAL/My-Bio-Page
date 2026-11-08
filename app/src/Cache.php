@@ -6,9 +6,9 @@ namespace Bio;
 use RuntimeException;
 
 /**
- * Rendered HTML on disk. The key folds in the content revision and the
- * mtimes of every template asset, so a deploy invalidates itself without
- * anyone having to run a command on the server.
+ * Rendered HTML on disk. The key folds in the content revision, the template,
+ * the public assets and every PHP source file, so a deploy invalidates itself
+ * without anyone having to run a command on the server.
  */
 final class Cache
 {
@@ -31,7 +31,9 @@ final class Cache
             return null;
         }
 
-        return (string) file_get_contents($html);
+        $body = @file_get_contents($html);
+
+        return is_string($body) && $body !== '' ? $body : null;
     }
 
     public function put(string $lang, string $html): void
@@ -40,11 +42,8 @@ final class Cache
             throw new RuntimeException("Cannot create cache directory: {$this->dir}");
         }
 
-        if (file_put_contents($this->dir . '/' . $lang . '.html', $html) === false) {
-            throw new RuntimeException('Cannot write cache file');
-        }
-
-        file_put_contents($this->dir . '/' . $lang . '.key', $this->key);
+        $this->write($this->dir . '/' . $lang . '.html', $html);
+        $this->write($this->dir . '/' . $lang . '.key', $this->key);
     }
 
     public static function flush(string $dir): void
@@ -56,11 +55,15 @@ final class Cache
         foreach (glob($dir . '/*.key') ?: [] as $file) {
             @unlink($file);
         }
+
+        foreach (glob($dir . '/*.tmp') ?: [] as $file) {
+            @unlink($file);
+        }
     }
 
-    public function etag(): string
+    public function etag(string $lang = ''): string
     {
-        return 'W/"' . sha1($this->key) . '"';
+        return 'W/"' . sha1($this->key . '|' . $lang) . '"';
     }
 
     public static function keyFor(array $data, array $files): string
@@ -72,5 +75,25 @@ final class Cache
         }
 
         return sha1(implode('|', $parts));
+    }
+
+    private function write(string $path, string $data): void
+    {
+        $tmp = $path . '.tmp';
+        $handle = @fopen($tmp, 'xb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Cannot write cache file');
+        }
+
+        $written = fwrite($handle, $data);
+        $flushed = fflush($handle);
+        fclose($handle);
+
+        if ($written !== strlen($data) || $flushed === false || !@rename($tmp, $path)) {
+            @unlink($tmp);
+
+            throw new RuntimeException('Cannot write cache file');
+        }
     }
 }

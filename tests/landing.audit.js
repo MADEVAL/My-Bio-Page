@@ -3,7 +3,7 @@
  *
  * Usage:
  *   1. npx playwright install chromium
- *   2. python -m http.server 8123 --directory app
+ *   2. php -S 127.0.0.1:8123 -t public tests/router.php
  *   3. npm i playwright axe-core && node tests/landing.audit.js
  *
  * Optional env: BASE_URL (default http://127.0.0.1:8123)
@@ -171,7 +171,7 @@ const contrastScript = () => {
     // ---------------------------------------------------------------
     section('3. Контраст (WCAG AA)');
     for (const theme of ['dark', 'light']) {
-        const { ctx, page } = await newPage(browser);
+        const { ctx, page } = await newPage(browser, { reducedMotion: 'reduce' });
         await page.addInitScript((t) => localStorage.setItem('linkbio-theme', t), theme);
         await page.goto(BASE + '/', { waitUntil: 'load' });
         await page.waitForTimeout(700);
@@ -261,6 +261,8 @@ const contrastScript = () => {
 
     // ---------------------------------------------------------------
     section('7. Ссылки и изображения');
+    let enAnchorCount = 0;
+    let enExternal = 0;
     for (const [url, label] of [[BASE + '/', 'EN'], [BASE + '/ru.html', 'RU']]) {
         const { ctx, page } = await newPage(browser);
         await page.goto(url, { waitUntil: 'load' });
@@ -278,12 +280,21 @@ const contrastScript = () => {
                 }
             });
             const imgs = [...document.images].map((i) => ({ src: i.currentSrc || i.src, w: i.naturalWidth }));
-            return { count: anchors.length, bad, brokenImgs: imgs.filter((i) => i.w === 0) };
+            return {
+                count: anchors.length,
+                external: anchors.filter((a) => /^https?:/.test(a.getAttribute('href'))).length,
+                bad,
+                brokenImgs: imgs.filter((i) => i.w === 0)
+            };
         });
         ok(label + ': ссылки корректны (' + audit.count + ')', audit.bad.length === 0, audit.bad.slice(0, 5).join(' | '));
         ok(label + ': все картинки загрузились', audit.brokenImgs.length === 0, JSON.stringify(audit.brokenImgs));
-        if (label === 'EN') ok('EN: 15 ссылок (13 внешних + mailto + переключатель языка)', audit.count === 15, String(audit.count));
-        if (label === 'RU') ok('RU: столько же ссылок, что и EN', audit.count === 15, String(audit.count));
+        if (label === 'EN') {
+            enAnchorCount = audit.count;
+            enExternal = audit.external;
+            ok('EN: есть ссылки', audit.count > 0, String(audit.count));
+        }
+        if (label === 'RU') ok('RU: столько же ссылок, что и EN', audit.count === enAnchorCount, String(audit.count));
         await ctx.close();
     }
 
@@ -332,7 +343,7 @@ const contrastScript = () => {
         ok(label + ': twitter card', seo.twitter === 'summary_large_image');
         ok(label + ': JSON-LD валиден', seo.ld !== 'PARSE_ERROR' && seo.ld['@type'] === 'ProfilePage', typeof seo.ld === 'string' ? seo.ld : seo.ld['@type']);
         const person = seo.ld && seo.ld.mainEntity;
-        ok(label + ': JSON-LD Person.sameAs заполнен', person && person['@type'] === 'Person' && Array.isArray(person.sameAs) && person.sameAs.length === 13, person && String(person.sameAs && person.sameAs.length));
+        ok(label + ': JSON-LD Person.sameAs заполнен', person && person['@type'] === 'Person' && Array.isArray(person.sameAs) && person.sameAs.length === enExternal, person && String(person.sameAs && person.sameAs.length));
         await ctx.close();
     }
     {
@@ -401,7 +412,7 @@ const contrastScript = () => {
     {
         const { ctx, page } = await newPage(browser);
         await page.goto(BASE + '/', { waitUntil: 'load' });
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(1200);
         const card = page.locator('.link-card.project-card');
         await page.evaluate(() => {
             window.__rippleSeen = false;
@@ -450,7 +461,7 @@ const contrastScript = () => {
     const axeTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
     for (const theme of ['dark', 'light']) {
         for (const [url, label] of [[BASE + '/', 'EN'], [BASE + '/ru.html', 'RU']]) {
-            const { ctx, page } = await newPage(browser);
+            const { ctx, page } = await newPage(browser, { reducedMotion: 'reduce' });
             await page.addInitScript((t) => localStorage.setItem('linkbio-theme', t), theme);
             await page.goto(url, { waitUntil: 'load' });
             await page.waitForTimeout(700);

@@ -69,13 +69,10 @@ $settings = $v['settings'];
     </script>
 
     <!-- Icons & Fonts -->
-    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="<?= e($settings['photo']) ?>">
-    <link rel="preload" as="image" href="<?= e($settings['photo']) ?>" fetchpriority="high">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="<?= e(asset($settings['photo'])) ?>">
+    <link rel="preload" as="image" href="<?= e(asset($settings['photo'])) ?>" fetchpriority="high">
+    <link rel="stylesheet" href="/styles.css">
 
     <!-- Structured data -->
     <script type="application/ld+json">
@@ -113,7 +110,7 @@ $settings = $v['settings'];
         <!-- Profile Section -->
         <header class="profile">
             <div class="avatar">
-                <img src="<?= e($settings['photo']) ?>" alt="<?= e($profile['alt']) ?>" class="avatar-img" width="120" height="120" fetchpriority="high" decoding="async">
+                <img src="<?= e(asset($settings['photo'])) ?>" alt="<?= e($profile['alt']) ?>" class="avatar-img" width="120" height="120" fetchpriority="high" decoding="async">
             </div>
             <h1 class="name"><?= e($profile['name']) ?></h1>
             <p class="title"><?= e($profile['role']) ?></p>
@@ -156,6 +153,6 @@ $settings = $v['settings'];
     <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <script type="application/json" id="i18n"><?= $v['i18n'] ?></script>
-    <script src="script.js"></script>
+    <script src="/script.js"></script>
 </body>
 </html>

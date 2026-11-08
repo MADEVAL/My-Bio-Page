@@ -218,16 +218,6 @@
     };
 
     // ==========================================
-    // Footer Year
-    // ==========================================
-    const Footer = {
-        init() {
-            const year = document.getElementById('currentYear');
-            if (year) year.textContent = new Date().getFullYear();
-        }
-    };
-
-    // ==========================================
     // Initialize
     // ==========================================
     function init() {
@@ -235,7 +225,6 @@
         EmailCopy.init();
         KeyboardNav.init();
         RippleEffect.init();
-        Footer.init();
     }
 
     if (document.readyState === 'loading') {
