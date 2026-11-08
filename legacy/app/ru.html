@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Евгений Леонидов | Архитектор ПО</title>
+    <meta name="description" content="Разработчик и архитектор ПО - ссылки на все мои проекты и социальные сети">
+    <meta name="robots" content="index, follow">
+
+    <!-- Alternate language -->
+    <link rel="alternate" hreflang="en" href="https://bio.leonidov.dev/">
+    <link rel="alternate" hreflang="ru" href="https://bio.leonidov.dev/ru.html">
+    <link rel="alternate" hreflang="x-default" href="https://bio.leonidov.dev/">
+    <link rel="canonical" href="https://bio.leonidov.dev/ru.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Евгений Леонидов | Архитектор ПО">
+    <meta property="og:description" content="Разработчик и архитектор ПО - ссылки на все мои проекты и социальные сети">
+    <meta property="og:image" content="https://bio.leonidov.dev/assets/OG.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Евгений Леонидов - архитектор ПО и разработчик">
+    <meta property="og:url" content="https://bio.leonidov.dev/ru.html">
+    <meta property="og:site_name" content="Евгений Леонидов">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:locale:alternate" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Евгений Леонидов | Архитектор ПО">
+    <meta name="twitter:description" content="Разработчик и архитектор ПО - ссылки на все мои проекты и социальные сети">
+    <meta name="twitter:image" content="https://bio.leonidov.dev/assets/OG.jpg">
+    <meta name="twitter:image:alt" content="Евгений Леонидов - архитектор ПО и разработчик">
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0a0a0b">
+    <meta name="color-scheme" content="dark light">
+
+    <!-- Theme bootstrap: runs before CSS paints to avoid a flash of the wrong theme -->
+    <script>
+        (function () {
+            var theme;
+            try { theme = localStorage.getItem('linkbio-theme'); } catch (e) { /* storage blocked */ }
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            document.documentElement.setAttribute('data-theme', theme);
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0a0b' : '#fafafa');
+        })();
+    </script>
+
+    <!-- Icons & Fonts -->
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/photo.jpg">
+    <link rel="preload" as="image" href="assets/photo.jpg" fetchpriority="high">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        "inLanguage": "ru",
+        "url": "https://bio.leonidov.dev/ru.html",
+        "mainEntity": {
+            "@type": "Person",
+            "name": "Евгений Леонидов",
+            "alternateName": "Yevhen Leonidov",
+            "url": "https://leonidov.dev",
+            "image": "https://bio.leonidov.dev/assets/photo.jpg",
+            "jobTitle": "Архитектор ПО и разработчик",
+            "email": "mailto:leonidovev@gmail.com",
+            "worksFor": {
+                "@type": "Organization",
+                "name": "GLOBUS.studio",
+                "url": "https://globus.studio"
+            },
+            "sameAs": [
+                "https://t.me/leonidov_dev",
+                "https://globus.studio",
+                "https://botblocker.top",
+                "https://leonidov.dev",
+                "https://www.linkedin.com/in/evgeniy-leonidov/",
+                "https://www.facebook.com/profile.php?id=100017514482500",
+                "https://www.tiktok.com/@yevhen_leonidov",
+                "https://x.com/LeonidovSoft",
+                "https://www.threads.net/@leonidovev",
+                "https://medium.com/@GLOBUS.studio",
+                "https://mastodon.social/@globus_studio",
+                "https://www.reddit.com/user/ZestycloseElection84/",
+                "https://globusstudio.tumblr.com/"
+            ]
+        }
+    }
+    </script>
+</head>
+<body>
+    <!-- Controls -->
+    <nav class="controls" aria-label="Управление страницей">
+        <a href="./" class="control-btn" id="langToggle" hreflang="en" aria-keyshortcuts="L">
+            <span class="lang-text">EN</span>
+            <span class="sr-only">переключить на английский</span>
+        </a>
+        <button type="button" class="control-btn" id="themeToggle" aria-label="Включить светлую тему" aria-keyshortcuts="T">
+            <svg class="icon-ui icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 2v2"/>
+                <path d="M12 20v2"/>
+                <path d="m4.93 4.93 1.41 1.41"/>
+                <path d="m17.66 17.66 1.41 1.41"/>
+                <path d="M2 12h2"/>
+                <path d="M20 12h2"/>
+                <path d="m6.34 17.66-1.41 1.41"/>
+                <path d="m19.07 4.93-1.41 1.41"/>
+            </svg>
+            <svg class="icon-ui icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            </svg>
+        </button>
+    </nav>
+
+    <main class="container">
+        <!-- Profile Section -->
+        <header class="profile">
+            <div class="avatar">
+                <img src="assets/photo.jpg" alt="Евгений Леонидов" class="avatar-img" width="120" height="120" fetchpriority="high" decoding="async">
+            </div>
+            <h1 class="name">Евгений Леонидов</h1>
+            <p class="title">Архитектор ПО и разработчик</p>
+            <p class="bio">Создаю масштабируемые решения и руковожу командами разработки</p>
+        </header>
+
+        <!-- Main Links -->
+        <section class="links-section">
+            <h2 class="sr-only">Основные ссылки</h2>
+
+            <a href="https://t.me/leonidov_dev" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                </div>
+                <div class="link-content">
+                    <span class="link-title">Телеграм-канал</span>
+                    <span class="link-subtitle">@leonidov_dev</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+
+            <a href="https://globus.studio" class="link-card featured" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><img src="assets/GLOBUS_WHITE.png" alt="" class="link-logo" width="24" height="24" loading="lazy" decoding="async"></div>
+                <div class="link-content">
+                    <span class="link-title">GLOBUS.studio</span>
+                    <span class="link-subtitle">Аутсорс-разработка</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+        </section>
+
+        <!-- Projects Section -->
+        <section class="links-section">
+            <h2 class="section-title">Проекты</h2>
+
+            <a href="https://botblocker.top" class="link-card project-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon"><img src="assets/bb_mini.png" alt="" class="link-logo" width="24" height="24" loading="lazy" decoding="async"></div>
+                <div class="link-content">
+                    <span class="link-title">BotBlocker</span>
+                    <span class="link-subtitle">Защита WordPress от ботов</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+        </section>
+
+        <!-- Content & Platforms -->
+        <section class="links-section">
+            <h2 class="section-title">Контент</h2>
+
+            <a href="https://leonidov.dev" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon">
+                    <svg class="icon-ui" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                        <path d="M2 12h20"/>
+                    </svg>
+                </div>
+                <div class="link-content">
+                    <span class="link-title">Личный сайт и блог</span>
+                    <span class="link-subtitle">leonidov.dev</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+
+            <a href="https://medium.com/@GLOBUS.studio" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.21 0A4.201 4.201 0 0 0 0 4.21v15.58A4.201 4.201 0 0 0 4.21 24h15.58A4.201 4.201 0 0 0 24 19.79v-1.093c-.137.013-.278.02-.422.02-2.577 0-4.027-2.146-4.09-4.832a7.592 7.592 0 0 1 .022-.708c.093-1.186.475-2.241 1.105-3.022a3.885 3.885 0 0 1 1.395-1.1c.468-.237 1.127-.367 1.664-.367h.023c.101 0 .202.004.303.01V4.211A4.201 4.201 0 0 0 19.79 0Zm.198 5.583h4.165l3.588 8.435 3.59-8.435h3.864v.146l-.019.004c-.705.16-1.063.397-1.063 1.254h-.003l.003 10.274c.06.676.424.885 1.063 1.03l.02.004v.145h-4.923v-.145l.019-.005c.639-.144.994-.353 1.054-1.03V7.267l-4.745 11.15h-.261L6.15 7.569v9.445c0 .857.358 1.094 1.063 1.253l.02.004v.147H4.405v-.147l.019-.004c.705-.16 1.065-.397 1.065-1.253V6.987c0-.857-.358-1.094-1.064-1.254l-.018-.004zm19.25 3.668c-1.086.023-1.733 1.323-1.813 3.124H24V9.298a1.378 1.378 0 0 0-.342-.047Zm-1.862 3.632c-.1 1.756.86 3.239 2.204 3.634v-3.634z"/></svg>
+                </div>
+                <div class="link-content">
+                    <span class="link-title">Medium</span>
+                    <span class="link-subtitle">Статьи и заметки</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+        </section>
+
+        <!-- Social Links -->
+        <section class="links-section">
+            <h2 class="section-title">Соцсети</h2>
+
+            <a href="https://www.linkedin.com/in/evgeniy-leonidov/" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                </div>
+                <div class="link-content">
+                    <span class="link-title">LinkedIn</span>
+                    <span class="link-subtitle">Профессиональная сеть</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+
+            <a href="https://www.facebook.com/profile.php?id=100017514482500" class="link-card" target="_blank" rel="noopener noreferrer">
+                <div class="link-icon">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg>
+                </div>
+                <div class="link-content">
+                    <span class="link-title">Facebook</span>
+                    <span class="link-subtitle">Личная страница</span>
+                </div>
+                <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </a>
+
+            <div class="social-grid">
+                <a href="https://www.tiktok.com/@yevhen_leonidov" class="social-btn" data-brand="tiktok" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                </a>
+                <a href="https://x.com/LeonidovSoft" class="social-btn" data-brand="x" target="_blank" rel="noopener noreferrer" aria-label="X">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>
+                </a>
+                <a href="https://www.threads.net/@leonidovev" class="social-btn" data-brand="threads" target="_blank" rel="noopener noreferrer" aria-label="Threads">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/></svg>
+                </a>
+                <a href="https://mastodon.social/@globus_studio" class="social-btn" data-brand="mastodon" target="_blank" rel="noopener noreferrer" aria-label="Mastodon">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M23.268 5.313c-.35-2.578-2.617-4.61-5.304-5.004C17.51.242 15.792 0 11.813 0h-.03c-3.98 0-4.835.242-5.288.309C3.882.692 1.496 2.518.917 5.127.64 6.412.61 7.837.661 9.143c.074 1.874.088 3.745.26 5.611.118 1.24.325 2.47.62 3.68.55 2.237 2.777 4.098 4.96 4.857 2.336.792 4.849.923 7.256.38.265-.061.527-.132.786-.213.585-.184 1.27-.39 1.774-.753a.057.057 0 0 0 .023-.043v-1.809a.052.052 0 0 0-.02-.041.053.053 0 0 0-.046-.01 20.282 20.282 0 0 1-4.709.545c-2.73 0-3.463-1.284-3.674-1.818a5.593 5.593 0 0 1-.319-1.433.053.053 0 0 1 .066-.054c1.517.363 3.072.546 4.632.546.376 0 .75 0 1.125-.01 1.57-.044 3.224-.124 4.768-.422.038-.008.077-.015.11-.024 2.435-.464 4.753-1.92 4.989-5.604.008-.145.03-1.52.03-1.67.002-.512.167-3.63-.024-5.545zm-3.748 9.195h-2.561V8.29c0-1.309-.55-1.976-1.67-1.976-1.23 0-1.846.79-1.846 2.35v3.403h-2.546V8.663c0-1.56-.617-2.35-1.848-2.35-1.112 0-1.668.668-1.67 1.977v6.218H4.822V8.102c0-1.31.337-2.35 1.011-3.12.696-.77 1.608-1.164 2.74-1.164 1.311 0 2.302.5 2.962 1.498l.638 1.06.638-1.06c.66-.999 1.65-1.498 2.96-1.498 1.13 0 2.043.395 2.74 1.164.675.77 1.012 1.81 1.012 3.12z"/></svg>
+                </a>
+                <a href="https://www.reddit.com/user/ZestycloseElection84/" class="social-btn" data-brand="reddit" target="_blank" rel="noopener noreferrer" aria-label="Reddit">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0Zm4.388 3.199c1.104 0 1.999.895 1.999 1.999 0 1.105-.895 2-1.999 2-.946 0-1.739-.657-1.947-1.539v.002c-1.147.162-2.032 1.15-2.032 2.341v.007c1.776.067 3.4.567 4.686 1.363.473-.363 1.064-.58 1.707-.58 1.547 0 2.802 1.254 2.802 2.802 0 1.117-.655 2.081-1.601 2.531-.088 3.256-3.637 5.876-7.997 5.876-4.361 0-7.905-2.617-7.998-5.87-.954-.447-1.614-1.415-1.614-2.538 0-1.548 1.255-2.802 2.803-2.802.645 0 1.239.218 1.712.585 1.275-.79 2.881-1.291 4.64-1.365v-.01c0-1.663 1.263-3.034 2.88-3.207.188-.911.993-1.595 1.959-1.595Zm-8.085 8.376c-.784 0-1.459.78-1.506 1.797-.047 1.016.64 1.429 1.426 1.429.786 0 1.371-.369 1.418-1.385.047-1.017-.553-1.841-1.338-1.841Zm7.406 0c-.786 0-1.385.824-1.338 1.841.047 1.017.634 1.385 1.418 1.385.785 0 1.473-.413 1.426-1.429-.046-1.017-.721-1.797-1.506-1.797Zm-3.703 4.013c-.974 0-1.907.048-2.77.135-.147.015-.241.168-.183.305.483 1.154 1.622 1.964 2.953 1.964 1.33 0 2.47-.81 2.953-1.964.057-.137-.037-.29-.184-.305-.863-.087-1.795-.135-2.769-.135Z"/></svg>
+                </a>
+                <a href="https://globusstudio.tumblr.com/" class="social-btn" data-brand="tumblr" target="_blank" rel="noopener noreferrer" aria-label="Tumblr">
+                    <svg class="icon-brand" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14.563 24c-5.093 0-7.031-3.756-7.031-6.411V9.747H5.116V6.648c3.63-1.313 4.512-4.596 4.71-6.469C9.84.051 9.941 0 9.999 0h3.517v6.114h4.801v3.633h-4.82v7.47c.016 1.001.375 2.371 2.207 2.371h.09c.631-.02 1.486-.205 1.936-.419l1.156 3.425c-.436.636-2.4 1.374-4.156 1.404h-.178l.011.002z"/></svg>
+                </a>
+            </div>
+        </section>
+
+        <!-- Contact -->
+        <section class="links-section">
+            <h2 class="sr-only">Контакты</h2>
+
+            <div class="email-wrapper">
+                <a href="mailto:leonidovev@gmail.com" class="link-card email-card">
+                    <div class="link-icon">
+                        <svg class="icon-ui" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <rect width="20" height="16" x="2" y="4" rx="2"/>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                        </svg>
+                    </div>
+                    <div class="link-content">
+                        <span class="link-title">Написать мне</span>
+                        <span class="link-subtitle">leonidovev@gmail.com</span>
+                    </div>
+                    <svg class="icon-ui link-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </a>
+                <button type="button" class="copy-btn" id="copyEmail" data-email="leonidovev@gmail.com" aria-label="Скопировать адрес email">
+                    <svg class="icon-ui" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2016 - <span id="currentYear">2026</span> Евгений Леонидов</p>
+        </footer>
+    </main>
+
+    <!-- Toast notifications -->
+    <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
