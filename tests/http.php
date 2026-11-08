@@ -23,16 +23,20 @@ function copyApp(string $dest): void
         throw new RuntimeException('app dir is missing');
     }
 
+    $prefix = rtrim($source, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
     $items = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($source, FilesystemIterator::SKIP_DOTS),
         RecursiveIteratorIterator::SELF_FIRST
     );
 
     foreach ($items as $item) {
-        $target = $dest . '/' . $items->getSubPathname();
+        $relative = substr($item->getPathname(), strlen($prefix));
+        $target = $dest . '/' . str_replace(DIRECTORY_SEPARATOR, '/', $relative);
 
         if ($item->isDir()) {
-            mkdir($target, 0775, true);
+            if (!is_dir($target)) {
+                mkdir($target, 0775, true);
+            }
         } else {
             copy($item->getPathname(), $target);
         }
