@@ -60,6 +60,7 @@ jobs:
           fi
           code=$(curl -s -o /dev/null -w '%{http_code}' "$url/")
           test "$code" = "200"
-          curl -fsS "$url/ru.html" | grep -q 'lang="ru"'
-          curl -fsS "$url/sitemap.xml" | grep -q '<urlset'
+          curl -fsS "$url/index.php?lang=ru" | grep -q 'lang="ru"'
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$url/mcp.php")
+          test "$code" = "405"
           echo "smoke ok"

@@ -198,6 +198,17 @@ try {
         }
     });
 
+    Harness::test('language works without any rewrite', function (): void {
+        $response = request('GET', '/index.php?lang=ru');
+
+        assertSame(200, $response['status']);
+        assertContains('lang="ru"', $response['body']);
+    });
+
+    Harness::test('MCP is reachable at mcp.php', function (): void {
+        assertSame(405, request('GET', '/mcp.php')['status']);
+    });
+
     Harness::group('HTTP: MCP');
 
     Harness::test('MCP requires POST', function (): void {

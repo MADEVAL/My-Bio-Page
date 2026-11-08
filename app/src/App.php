@@ -67,7 +67,7 @@ final class App
         }
 
         $lang = match ($path) {
-            '/', '/index.html', '/index.php' => 'en',
+            '/', '/index.html', '/index.php' => self::langFromQuery($uri) ?? 'en',
             '/ru.html', '/ru', '/ru/' => 'ru',
             default => null,
         };
@@ -106,17 +106,60 @@ final class App
         return new Response(200, $headers, $html);
     }
 
+    /**
+     * ?lang=ru works without any rewrite rules, which matters on vhosts
+     * that cannot be touched.
+     */
+    private static function langFromQuery(string $uri): ?string
+    {
+        $query = parse_url($uri, PHP_URL_QUERY);
+
+        if (!is_string($query)) {
+            return null;
+        }
+
+        parse_str($query, $params);
+        $lang = $params['lang'] ?? null;
+
+        return is_string($lang) && in_array($lang, ['en', 'ru'], true) ? $lang : null;
+    }
+
     /** @return array<string, string> */
     private static function readEnv(string $root): array
     {
-        $config = ['mcpToken' => (string) (getenv('MCP_TOKEN') ?: '')];
-        $file = $root . '/.env';
+        return ['mcpToken' => self::readToken($root)];
+    }
 
-        if (!is_file($file)) {
-            return $config;
+    /**
+     * Token resolution, safest first:
+     *   1. MCP_TOKEN from the process environment (php-fpm pool env[])
+     *   2. bio.token next to the document root - unreachable over HTTP
+     *   3. .env inside the document root (legacy; only safe if the vhost
+     *      already denies dotfiles, so it is the last resort)
+     */
+    private static function readToken(string $root): string
+    {
+        $fromEnv = getenv('MCP_TOKEN');
+
+        if (is_string($fromEnv) && $fromEnv !== '') {
+            return $fromEnv;
         }
 
-        foreach (file($file, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+        $outside = dirname($root) . '/bio.token';
+
+        if (is_file($outside)) {
+            return trim((string) file_get_contents($outside));
+        }
+
+        $legacy = $root . '/.env';
+
+        if (!is_file($legacy)) {
+            return '';
+        }
+
+        $token = '';
+
+        foreach (file($legacy, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
             $line = trim($line);
 
             if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
@@ -126,10 +169,10 @@ final class App
             [$key, $value] = explode('=', $line, 2);
 
             if (trim($key) === 'MCP_TOKEN') {
-                $config['mcpToken'] = trim($value, " \t\"'");
+                $token = trim($value, " \t\"'");
             }
         }
 
-        return $config;
+        return $token;
     }
 }

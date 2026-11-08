@@ -8,5 +8,7 @@ app/content/*.tmp
 # Rendered HTML cache
 app/cache/
 
-# Secrets
+# Secrets: the token belongs next to the document root, not inside it
 app/.env
+bio.token
+app/bio.token

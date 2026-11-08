@@ -37,7 +37,7 @@ request ──► nginx ──► index.php ──► App ──► Cache ──
 ```
 app/
 ├── index.php              # front controller (/, /ru.html, /sitemap.xml)
-├── mcp.php                # POST /mcp - MCP over Streamable HTTP
+├── mcp.php                # MCP endpoint (POST /mcp.php)
 ├── src/
 │   ├── App.php            # routing, headers, ETag, 304, env
 │   ├── Content.php        # schema validation, atomic writes, backups, audit
@@ -52,10 +52,9 @@ app/
 ├── content/site.json      # live content (created on first write, gitignored)
 ├── assets/                # photo, logos, OG image, favicon
 ├── styles.css             # design tokens, dark/light
-├── script.js              # theme, clipboard, shortcuts
-└── .env                   # MCP_TOKEN (gitignored)
-deploy/nginx-bio.conf      # nginx + PHP-FPM server block
-tests/                     # 130 unit, 12 HTTP, 74 Playwright checks
+└── script.js              # theme, clipboard, shortcuts
+tests/                     # 134 unit, 14 HTTP, 74 Playwright checks
+bio.token                  # MCP token, lives next to app/, never inside it
 ```
 
 ---
@@ -66,31 +65,56 @@ tests/                     # 130 unit, 12 HTTP, 74 Playwright checks
 php -S 127.0.0.1:8123 -t app tests/router.php
 ```
 
-`tests/router.php` mirrors the nginx rules (including the deny list) so the dev server behaves like production.
+`tests/router.php` mirrors a typical nginx setup (pretty URLs plus the deny list) so the dev server behaves like production.
 
 ---
 
 ## Deploy
 
-nginx + PHP-FPM only. Apache is not supported and never will be.
+PHP-FPM only. Apache is not supported. **There is no nginx config in this repository on purpose** - the existing vhost is used as is.
+
+Document root: `app/`.
+
+Two things the current vhost has to provide:
+
+1. `index index.php;` - otherwise `/` does not reach the front controller.
+2. Executing `mcp.php` - the standard `location ~ \.php$` block is enough.
+
+`/ru.html` and `/mcp` are pretty URLs: they exist only if the vhost rewrites them. Every entry point below works without touching a single nginx line:
+
+| URL | Result |
+|---|---|
+| `/` | EN |
+| `/?lang=ru` | RU |
+| `/index.php?lang=ru` | RU |
+| `/ru.html` | RU, only with `try_files $uri $uri/ /index.php` |
+| `/mcp.php` | MCP endpoint |
+| `/mcp` | alias, only with an explicit `location` |
+
+Verify after the first deploy:
 
 ```bash
-cp deploy/nginx-bio.conf /etc/nginx/sites-available/bio.leonidov.dev
-ln -s ../sites-available/bio.leonidov.dev /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
+curl -s -o /dev/null -w '%{http_code}\n' https://bio.leonidov.dev/          # 200
+curl -s https://bio.leonidov.dev/index.php?lang=ru | grep -c 'lang="ru"'    # 1
+curl -s -o /dev/null -w '%{http_code}\n' https://bio.leonidov.dev/mcp.php   # 405
 ```
 
-Adjust the PHP-FPM socket at the top of the config, then create the token once on the server:
+### Token
+
+The token grants write access to the site, so it must not sit inside the document root. Put it one level up:
 
 ```bash
-cd /var/www/bio/app
-cp .env.example .env
-php -r 'echo "MCP_TOKEN=", bin2hex(random_bytes(32)), PHP_EOL;' >> .env
-chown -R www-data:www-data content cache
-chmod -R 775 content cache
+cd /var/www/bio
+php -r 'echo bin2hex(random_bytes(32)), PHP_EOL;' > bio.token
+chmod 400 bio.token
+chown www-data:www-data bio.token
+chown -R www-data:www-data app/content app/cache
+chmod -R 775 app/content app/cache
 ```
 
-PHP-FPM must be able to write `content/` and `cache/`; the rest of the tree can stay read-only for the web user.
+Resolution order, safest first: `MCP_TOKEN` from the process environment, then `bio.token` next to `app/`, then the legacy `app/.env` (only safe if the vhost already denies dotfiles).
+
+PHP-FPM needs write access to `content/` and `cache/`; everything else can stay read-only.
 
 Pushing to `main` lints, runs both test suites, rsyncs and smoke-tests. `content/site.json`, `cache/` and `.env` are excluded from rsync, so a deploy never overwrites live content or secrets.
 
@@ -98,10 +122,10 @@ Pushing to `main` lints, runs both test suites, rsyncs and smoke-tests. `content
 
 ## MCP
 
-Endpoint: `POST /mcp`, `Authorization: Bearer <MCP_TOKEN>`, JSON-RPC 2.0 over Streamable HTTP (JSON responses, POST only, no SSE stream).
+Endpoint: `POST /mcp.php` (or `/mcp` if the vhost aliases it), `Authorization: Bearer <MCP_TOKEN>`, JSON-RPC 2.0 over Streamable HTTP (JSON responses, POST only, no SSE stream).
 
 ```bash
-curl -s https://bio.leonidov.dev/mcp \
+curl -s https://bio.leonidov.dev/mcp.php \
   -H "Authorization: Bearer $MCP_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}'
@@ -126,12 +150,12 @@ Every mutation accepts `rev`. Pass a stale one and you get a conflict instead of
 
 ### Security model
 
-- Bearer token in `.env`, compared with `hash_equals`. Empty token = endpoint locked.
+- Bearer token read from `MCP_TOKEN`, `bio.token` outside the document root, or a legacy `.env`; compared with `hash_equals`. Empty token = endpoint locked.
 - Whole-tree schema validation before every write; invalid content never reaches disk.
 - Atomic write (`tmp` + `rename`) under an exclusive lock.
 - Backup of the previous revision before every write, last 20 kept.
 - Audit log: `content/.audit.jsonl`.
-- `robots.txt` disallows `/mcp`; nginx denies `/content`, `/src`, `/templates`, `/cache`, `.env`.
+- `robots.txt` disallows `/mcp` and `/mcp.php`; if the vhost can be touched, deny `/content`, `/src`, `/templates`, `/cache` and dotfiles as well.
 
 ### If something goes wrong
 
@@ -145,8 +169,8 @@ rm -f cache/*.html cache/*.key
 ## Tests
 
 ```bash
-php -d xdebug.mode=coverage tests/run.php   # 130 unit tests, 100% line coverage gate
-php tests/http.php                          # 12 end-to-end checks over real sockets
+php -d xdebug.mode=coverage tests/run.php   # 134 unit tests, 100% line coverage gate
+php tests/http.php                          # 14 end-to-end checks over real sockets
 node tests/landing.audit.js                 # 74 browser checks (Playwright + axe-core)
 ```
 
@@ -155,8 +179,8 @@ node tests/landing.audit.js                 # 74 browser checks (Playwright + ax
 The Playwright suite also covers WCAG 2.0-2.2 AA via axe-core, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang and the clipboard fallback.
 
 ```
-Unit:        130 passed, 100.00% (795/795 lines)
-HTTP:        12 passed
+Unit:        134 passed, 100.00% (808/808 lines)
+HTTP:        14 passed
 Playwright:  74 passed
 ```
 

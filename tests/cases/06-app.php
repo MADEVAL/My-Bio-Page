@@ -60,6 +60,23 @@ Harness::test('serves the russian page and its aliases', function (): void {
     }
 });
 
+Harness::test('accepts the language as a query parameter', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = new App($root, ['mcpToken' => 'secret']);
+
+        assertSame('ru', $app->page('/?lang=ru')->headers['Content-Language']);
+        assertSame('ru', $app->page('/index.php?lang=ru')->headers['Content-Language']);
+        assertSame('en', $app->page('/?lang=en')->headers['Content-Language']);
+        assertSame('en', $app->page('/?lang=de')->headers['Content-Language']);
+        assertSame('en', $app->page('/?lang[]=ru')->headers['Content-Language']);
+        assertSame('en', $app->page('/?foo=1')->headers['Content-Language']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('serves a generated sitemap', function (): void {
     $root = makeWorkspace();
 
@@ -107,6 +124,10 @@ Harness::test('reads the token from .env and ignores noise', function (): void {
     $root = makeWorkspace();
 
     try {
+        // Higher-precedence sources must not interfere with this test.
+        @unlink(dirname($root) . '/bio.token');
+        putenv('MCP_TOKEN');
+
         file_put_contents($root . '/.env', implode("\n", [
             '# comment',
             '',
@@ -119,6 +140,60 @@ Harness::test('reads the token from .env and ignores noise', function (): void {
         assertSame(200, $app->mcp('', 'Bearer from-env-file')->status);
         assertSame(401, $app->mcp('', 'Bearer wrong')->status);
     } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('reads the token file next to the document root', function (): void {
+    $root = makeWorkspace();
+    $tokenFile = dirname($root) . '/bio.token';
+
+    try {
+        putenv('MCP_TOKEN');
+        file_put_contents($tokenFile, "file-token\n");
+
+        $app = new App($root);
+
+        assertSame(200, $app->mcp('', 'Bearer file-token')->status);
+        assertSame(401, $app->mcp('', 'Bearer wrong')->status);
+    } finally {
+        @unlink($tokenFile);
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('the environment beats the token file', function (): void {
+    $root = makeWorkspace();
+    $tokenFile = dirname($root) . '/bio.token';
+
+    try {
+        file_put_contents($tokenFile, 'file-token');
+        putenv('MCP_TOKEN=env-token');
+
+        $app = new App($root);
+
+        assertSame(200, $app->mcp('', 'Bearer env-token')->status);
+        assertSame(401, $app->mcp('', 'Bearer file-token')->status);
+    } finally {
+        putenv('MCP_TOKEN');
+        @unlink($tokenFile);
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('locks down when no token exists anywhere', function (): void {
+    $root = makeWorkspace();
+    $tokenFile = dirname($root) . '/bio.token';
+
+    try {
+        @unlink($tokenFile);
+        putenv('MCP_TOKEN');
+
+        $app = new App($root);
+
+        assertSame(401, $app->mcp('', 'Bearer anything')->status);
+    } finally {
+        @unlink($tokenFile);
         removeWorkspace($root);
     }
 });
