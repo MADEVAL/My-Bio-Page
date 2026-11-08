@@ -209,6 +209,8 @@ opencode mcp list
 
 Tools appear as `bio_<tool>`, or grouped under `tools.bio.*` in Code Mode.
 
+> `{env:BIO_TOKEN}` is the **name** of the variable, not the token. Writing the value inside the braces makes OpenCode look for an environment variable with that name and send `Bearer ` without a credential.
+
 #### OpenClaw
 
 `~/.openclaw/openclaw.json`. `transport` must be explicit - without it OpenClaw falls back to SSE.
@@ -272,6 +274,7 @@ claude mcp get bio
 | Symptom | Cause |
 |---|---|
 | `401` | token is wrong, or the file was rotated and the old value is still in the client |
+| `401` and the config shows `Bearer {env:...}` | the token was pasted inside the braces - `{env:NAME}` expects a variable name |
 | `405` | the client probed with `GET`; this endpoint is POST-only |
 | client starts an OAuth flow | the `Authorization` header is missing, so it fell back to OAuth - check the header and `oauth: false` in OpenCode |
 | `tools/list` returns 12 tools but the agent sees none | tool filters or permissions on the client side |
