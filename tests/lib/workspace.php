@@ -72,6 +72,12 @@ function makeContent(string $root, ?string $file = null, ?string $backupDir = nu
     );
 }
 
+/** Where the auto-provisioned token lands: next to the document root. */
+function outsideTokenPath(string $root): string
+{
+    return dirname($root) . '/bio.token';
+}
+
 /** Copy of the seed with a single field replaced by path. */
 function withPath(array $data, array $path, mixed $value): array
 {

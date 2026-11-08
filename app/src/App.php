@@ -133,9 +133,9 @@ final class App
     /**
      * Token resolution, safest first:
      *   1. MCP_TOKEN from the process environment (php-fpm pool env[])
-     *   2. bio.token next to the document root - unreachable over HTTP
-     *   3. .env inside the document root (legacy; only safe if the vhost
-     *      already denies dotfiles, so it is the last resort)
+     *   2. BIO_TOKEN_FILE, an explicit path
+     *   3. .env inside the document root (legacy, only safe if dotfiles are denied)
+     *   4. bio.token next to the document root, generated on first use
      */
     private static function readToken(string $root): string
     {
@@ -145,21 +145,32 @@ final class App
             return $fromEnv;
         }
 
-        $outside = dirname($root) . '/bio.token';
+        $custom = getenv('BIO_TOKEN_FILE');
 
-        if (is_file($outside)) {
-            return trim((string) file_get_contents($outside));
+        if (is_string($custom) && $custom !== '') {
+            return (new Token($custom))->ensure();
         }
 
-        $legacy = $root . '/.env';
+        $legacy = self::legacyToken($root);
 
-        if (!is_file($legacy)) {
+        if ($legacy !== '') {
+            return $legacy;
+        }
+
+        return (new Token(dirname($root) . '/bio.token'))->ensure();
+    }
+
+    private static function legacyToken(string $root): string
+    {
+        $file = $root . '/.env';
+
+        if (!is_file($file)) {
             return '';
         }
 
         $token = '';
 
-        foreach (file($legacy, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
+        foreach (file($file, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
             $line = trim($line);
 
             if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {

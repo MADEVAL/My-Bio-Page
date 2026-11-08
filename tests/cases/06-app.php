@@ -125,8 +125,9 @@ Harness::test('reads the token from .env and ignores noise', function (): void {
 
     try {
         // Higher-precedence sources must not interfere with this test.
-        @unlink(dirname($root) . '/bio.token');
+        @unlink(outsideTokenPath($root));
         putenv('MCP_TOKEN');
+        putenv('BIO_TOKEN_FILE');
 
         file_put_contents($root . '/.env', implode("\n", [
             '# comment',
@@ -146,10 +147,11 @@ Harness::test('reads the token from .env and ignores noise', function (): void {
 
 Harness::test('reads the token file next to the document root', function (): void {
     $root = makeWorkspace();
-    $tokenFile = dirname($root) . '/bio.token';
+    $tokenFile = outsideTokenPath($root);
 
     try {
         putenv('MCP_TOKEN');
+        putenv('BIO_TOKEN_FILE');
         file_put_contents($tokenFile, "file-token\n");
 
         $app = new App($root);
@@ -164,9 +166,10 @@ Harness::test('reads the token file next to the document root', function (): voi
 
 Harness::test('the environment beats the token file', function (): void {
     $root = makeWorkspace();
-    $tokenFile = dirname($root) . '/bio.token';
+    $tokenFile = outsideTokenPath($root);
 
     try {
+        putenv('BIO_TOKEN_FILE');
         file_put_contents($tokenFile, 'file-token');
         putenv('MCP_TOKEN=env-token');
 
@@ -181,16 +184,21 @@ Harness::test('the environment beats the token file', function (): void {
     }
 });
 
-Harness::test('locks down when no token exists anywhere', function (): void {
+Harness::test('ignores a .env without MCP_TOKEN and provisions one', function (): void {
     $root = makeWorkspace();
-    $tokenFile = dirname($root) . '/bio.token';
+    $tokenFile = outsideTokenPath($root);
 
     try {
         @unlink($tokenFile);
         putenv('MCP_TOKEN');
+        putenv('BIO_TOKEN_FILE');
+        file_put_contents($root . '/.env', "OTHER=1\n");
 
         $app = new App($root);
+        assertTrue(is_file($tokenFile));
 
+        $token = trim((string) file_get_contents($tokenFile));
+        assertSame(200, $app->mcp('', 'Bearer ' . $token)->status);
         assertSame(401, $app->mcp('', 'Bearer anything')->status);
     } finally {
         @unlink($tokenFile);
