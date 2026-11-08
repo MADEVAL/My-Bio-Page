@@ -1,0 +1,12 @@
+# Runtime state: writes to the server, never overwritten by a deploy
+app/content/site.json
+app/content/backups/
+app/content/.audit.jsonl
+app/content/*.lock
+app/content/*.tmp
+
+# Rendered HTML cache
+app/cache/
+
+# Secrets
+app/.env

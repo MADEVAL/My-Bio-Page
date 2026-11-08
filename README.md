@@ -2,7 +2,9 @@
 
 > *"Success in Persistence"* - Yevhen Leonidov
 
-A personal link-in-bio page. No framework, no npm install, no `node_modules` folder eating your SSD. Just plain HTML, CSS, and a sprinkle of vanilla JS - because sometimes the best stack is the one that loads in under a second.
+A personal link-in-bio page. No framework, no `node_modules` eating your SSD, no build step. PHP 8.5 renders the page, nginx serves it, and one JSON file is the only source of truth for both languages, the meta tags, the JSON-LD and the sitemap.
+
+Since 2026 the page is content-driven: **MCP** (Model Context Protocol) tools can add, reorder and hide links without touching a template.
 
 ---
 
@@ -15,76 +17,173 @@ A personal link-in-bio page. No framework, no npm install, no `node_modules` fol
 
 ---
 
-## Contacts
+## How it works
 
-- 🌐 Personal site & blog → [leonidov.dev](https://leonidov.dev)
-- 📢 Telegram channel → [@leonidov_dev](https://t.me/leonidov_dev)
-- 💼 LinkedIn → [evgeniy-leonidov](https://www.linkedin.com/in/evgeniy-leonidov/)
-- 🤖 Reddit → [u/ZestycloseElection84](https://www.reddit.com/user/ZestycloseElection84/) · [r/GLOBUS_studio](https://www.reddit.com/r/GLOBUS_studio/)
-- ✉️ Email → [leonidovev@gmail.com](mailto:leonidovev@gmail.com)
+```
+request ──► nginx ──► index.php ──► App ──► Cache ──► Renderer ──► HTML
+                        │                            ▲
+                        └──► Content (content/site.json)
+```
 
-
-
----
-
-## Open Source
-
-### [Atomic Framework](https://github.com/MADEVAL/Atomic-Framework)
-Lightweight PHP framework built on top of Fat-Free Framework. Because sometimes you want F3's speed without starting from scratch every time.
-
-### [Atomic Framework Application](https://github.com/MADEVAL/Atomic-Framework-Application)
-Boilerplate / starter template for Atomic Framework. Clone, configure, ship. No magic build pipeline required.
-
-### [Cortex-Atomic](https://github.com/GLOBUS-studio/Cortex-Atomic)
-Fork of the classic `ikkez/f3-cortex` Multi-engine ORM: SQL (SQLite, MySQL, PostgreSQL, MSSQL), MongoDB, Jig - heavily refactored for PHP 8.0–8.5 and the Atomic ecosystem.
-
-### WordPress Plugins
-
-#### [BotBlocker Security](https://wordpress.org/plugins/botblocker-security/)
-WordPress security plugin & WAF. Blocks bots, brute-force attempts, fake crawlers, and spam before WordPress even loads (MU-plugin, early-init). Multi-layer CAPTCHA, 2FA, live traffic monitoring, GeoIP, cloud threat intelligence. 2,000+ active installs, 5/5 stars.
-
-#### [GLOBUS Debug Control](https://wordpress.org/plugins/globus-debug-control/)
-Surgical `WP_DEBUG` filter. Suppress notices, deprecations, strict warnings independently - without touching `wp-config.php`. Keeps AJAX and REST responses clean, auto-rotates log files, optional MU-plugin dropin for early interception.
+- **One content file.** `content/site.json` holds both languages, all links, all metadata. Nothing is duplicated between EN and RU.
+- **Rendered once, then cached.** The cache key is `revision + template mtime + css/js mtime`, so a deploy or an edit invalidates itself. No stale pages, no manual cache busting.
+- **Writes are safe.** Every mutation validates the whole tree first, copies a backup, writes atomically under `flock`, and appends to an audit log.
+- **MCP writes through the same path.** No second code path, no "admin mode".
 
 ---
 
-## What's in the box?
+## Structure
 
 ```
 app/
-├── index.html   # EN version
-├── ru.html      # RU version (yes, I speak both)
-├── styles.css   # Design tokens, dark/light themes, responsive
-├── script.js    # Theme toggle, copy email, toasts, shortcuts
-├── robots.txt   # Crawler rules
-├── sitemap.xml  # Both pages + hreflang alternates
-└── assets/      # OG image, photo, logos, inline SVG favicon
+├── index.php              # front controller (/, /ru.html, /sitemap.xml)
+├── mcp.php                # POST /mcp - MCP over Streamable HTTP
+├── src/
+│   ├── App.php            # routing, headers, ETag, 304, env
+│   ├── Content.php        # schema validation, atomic writes, backups, audit
+│   ├── Renderer.php       # PHP → HTML, escaped
+│   ├── Seo.php            # meta, JSON-LD, sitemap from content
+│   ├── Cache.php          # rendered HTML + revision key
+│   ├── Mcp.php            # JSON-RPC, 12 tools
+│   ├── Icons.php          # inline SVG, no icon library
+│   └── ...
+├── templates/page.php     # the only template
+├── content/site.seed.json # initial content (deployed, never overwritten)
+├── content/site.json      # live content (created on first write, gitignored)
+├── assets/                # photo, logos, OG image, favicon
+├── styles.css             # design tokens, dark/light
+├── script.js              # theme, clipboard, shortcuts
+└── .env                   # MCP_TOKEN (gitignored)
+deploy/nginx-bio.conf      # nginx + PHP-FPM server block
+tests/                     # 130 unit, 12 HTTP, 74 Playwright checks
 ```
-
-## Features
-
-- **Dark / Light theme** - follows the system on first visit, remembers your choice, no flash on load
-- **EN / RU** - two static pages, SEO-friendly hreflang + `x-default`
-- **No build step, no framework, no icon library** - icons are inline SVG, the only external request is the Inter webfont
-- **Responsive** - 44px+ touch targets, works from a flip phone to a 4K monitor
-- **Accessible** - AA contrast in both themes, visible focus states, `aria-live` toasts, reduced-motion support
-- **Open Graph, Twitter Card & JSON-LD** - `ProfilePage` + `Person` with `sameAs`, link previews done right
-- **Copy email to clipboard** - with a fallback and a toast notification, because UX matters
 
 ---
 
-## Testing
-
-The audit lives outside `app/`, so it never ships and adds no runtime weight.
+## Local run
 
 ```bash
-npx playwright install chromium
-python -m http.server 8123 --directory app
-npm i playwright axe-core
-node tests/landing.audit.js
+php -S 127.0.0.1:8123 -t app tests/router.php
 ```
 
-74 checks: no console/network errors, theme without flash (system preference + persistence), WCAG AA contrast in both themes, axe-core (WCAG 2.0-2.2 AA + best practices), 44px touch targets, no horizontal overflow at 320-2560px, SEO/JSON-LD/hreflang, clipboard with fallback, keyboard shortcuts, reduced motion, ripple and CLS.
+`tests/router.php` mirrors the nginx rules (including the deny list) so the dev server behaves like production.
+
+---
+
+## Deploy
+
+nginx + PHP-FPM only. Apache is not supported and never will be.
+
+```bash
+cp deploy/nginx-bio.conf /etc/nginx/sites-available/bio.leonidov.dev
+ln -s ../sites-available/bio.leonidov.dev /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+Adjust the PHP-FPM socket at the top of the config, then create the token once on the server:
+
+```bash
+cd /var/www/bio/app
+cp .env.example .env
+php -r 'echo "MCP_TOKEN=", bin2hex(random_bytes(32)), PHP_EOL;' >> .env
+chown -R www-data:www-data content cache
+chmod -R 775 content cache
+```
+
+PHP-FPM must be able to write `content/` and `cache/`; the rest of the tree can stay read-only for the web user.
+
+Pushing to `main` lints, runs both test suites, rsyncs and smoke-tests. `content/site.json`, `cache/` and `.env` are excluded from rsync, so a deploy never overwrites live content or secrets.
+
+---
+
+## MCP
+
+Endpoint: `POST /mcp`, `Authorization: Bearer <MCP_TOKEN>`, JSON-RPC 2.0 over Streamable HTTP (JSON responses, POST only, no SSE stream).
+
+```bash
+curl -s https://bio.leonidov.dev/mcp \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}'
+```
+
+| Tool | What it does |
+|---|---|
+| `get_content` | whole content tree + revision |
+| `get_schema` | JSON Schema of the tree |
+| `list_sections` | sections, labels, layouts, counts |
+| `list_links` | links filtered by section / visibility / language |
+| `create_link` | add a link at an optional position |
+| `update_link` | patch title, subtitle, href, type, icon, visibility |
+| `move_link` | move between sections or positions |
+| `set_visibility` | hide without deleting |
+| `delete_link` | soft delete (hide) or `hard: true` |
+| `update_settings` | email, themeDefault, footerStart |
+| `preview` | render either language without touching the cache |
+| `publish` | drop the HTML cache |
+
+Every mutation accepts `rev`. Pass a stale one and you get a conflict instead of a lost update.
+
+### Security model
+
+- Bearer token in `.env`, compared with `hash_equals`. Empty token = endpoint locked.
+- Whole-tree schema validation before every write; invalid content never reaches disk.
+- Atomic write (`tmp` + `rename`) under an exclusive lock.
+- Backup of the previous revision before every write, last 20 kept.
+- Audit log: `content/.audit.jsonl`.
+- `robots.txt` disallows `/mcp`; nginx denies `/content`, `/src`, `/templates`, `/cache`, `.env`.
+
+### If something goes wrong
+
+```bash
+cp content/backups/site-20261108-221500-rev003.json content/site.json
+rm -f cache/*.html cache/*.key
+```
+
+---
+
+## Tests
+
+```bash
+php -d xdebug.mode=coverage tests/run.php   # 130 unit tests, 100% line coverage gate
+php tests/http.php                          # 12 end-to-end checks over real sockets
+node tests/landing.audit.js                 # 74 browser checks (Playwright + axe-core)
+```
+
+`tests/run.php` fails if **any** executable line in `app/src`, `app/index.php`, `app/mcp.php` or `templates/page.php` is not covered - measured by Xdebug, no PHPUnit, no composer.
+
+The Playwright suite also covers WCAG 2.0-2.2 AA via axe-core, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang and the clipboard fallback.
+
+```
+Unit:        130 passed, 100.00% (795/795 lines)
+HTTP:        12 passed
+Playwright:  74 passed
+```
+
+---
+
+## Content model
+
+```json
+{
+  "id": "telegram",
+  "type": "link",
+  "href": "https://t.me/leonidov_dev",
+  "icon": "telegram",
+  "order": 1,
+  "visible": true,
+  "title":    { "en": "Telegram Channel", "ru": "Телеграм-канал" },
+  "subtitle": { "en": "@leonidov_dev",    "ru": "@leonidov_dev" }
+}
+```
+
+Item types: `link`, `featured`, `project`, `social`, `email`. Section layouts: `cards`, `social`, `mixed`. Icons come from a fixed registry (inline SVG); a link can use `logo` instead of `icon` for a raster brand mark.
+
+---
+
+## legacy/
+
+`legacy/` is a frozen copy of the static HTML version (commit `2b1a871`), kept for reference. It is not deployed and not maintained.
 
 ---
 

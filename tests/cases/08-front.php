@@ -1,0 +1,67 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Runs the front controllers the way php-fpm would, without a web server.
+ * Both files are only a handful of lines, so including them is enough to
+ * keep them at 100% coverage.
+ *
+ * headers are already sent in CLI, so header() warnings are expected noise.
+ */
+
+Harness::group('Front controllers');
+
+function withoutHeaderWarnings(callable $fn): mixed
+{
+    $level = error_reporting(E_ALL & ~E_WARNING);
+
+    try {
+        return $fn();
+    } finally {
+        error_reporting($level);
+    }
+}
+
+Harness::test('index.php renders the requested language', function (): void {
+    foreach (['/' => 'lang="en"', '/ru.html' => 'lang="ru"'] as $uri => $needle) {
+        $_SERVER['REQUEST_URI'] = $uri;
+        unset($_SERVER['HTTP_IF_NONE_MATCH']);
+
+        $html = withoutHeaderWarnings(function (): string {
+            ob_start();
+            require APP_DIR . '/index.php';
+
+            return (string) ob_get_clean();
+        });
+
+        assertContains('<!DOCTYPE html>', $html, $uri);
+        assertContains($needle, $html, $uri);
+    }
+});
+
+Harness::test('mcp.php refuses anything but POST', function (): void {
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+
+    $body = withoutHeaderWarnings(function (): string {
+        ob_start();
+        require APP_DIR . '/mcp.php';
+
+        return (string) ob_get_clean();
+    });
+
+    assertContains('Method Not Allowed', $body);
+});
+
+Harness::test('mcp.php answers unauthenticated POSTs', function (): void {
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    unset($_SERVER['HTTP_AUTHORIZATION']);
+
+    $body = withoutHeaderWarnings(function (): string {
+        ob_start();
+        require APP_DIR . '/mcp.php';
+
+        return (string) ob_get_clean();
+    });
+
+    assertContains('Unauthorized', $body);
+});

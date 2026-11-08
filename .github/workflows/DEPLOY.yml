@@ -11,6 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: xdebug
+          tools: none
+
+      - name: Lint every PHP file
+        run: find app -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+
+      - name: Unit tests and coverage gate
+        run: php -d xdebug.mode=coverage tests/run.php
+
+      - name: HTTP tests
+        run: php tests/http.php
+
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
 
@@ -23,4 +39,27 @@ jobs:
           set -eu
           cd app
           export SSHPASS=${{ secrets.SSH_PASSWORD_OCAT }}
-          rsync -e "sshpass -e ssh -p 3333 -i $HOME/.ssh/key2 -o StrictHostKeyChecking=no" --archive --compress --update . "${{ secrets.DEPLOY_TARGET_OCAT }}"
+          rsync -e "sshpass -e ssh -p 3333 -i $HOME/.ssh/key2 -o StrictHostKeyChecking=no" \
+            --archive --compress --update \
+            --exclude='content/site.json' \
+            --exclude='content/backups' \
+            --exclude='content/.audit.jsonl' \
+            --exclude='content/*.lock' \
+            --exclude='content/*.tmp' \
+            --exclude='cache/' \
+            --exclude='.env' \
+            . "${{ secrets.DEPLOY_TARGET_OCAT }}"
+
+      - name: Smoke test
+        run: |
+          set -eu
+          url="${{ secrets.SMOKE_URL }}"
+          if [ -z "$url" ]; then
+            echo "SMOKE_URL is not configured, skipping"
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$url/")
+          test "$code" = "200"
+          curl -fsS "$url/ru.html" | grep -q 'lang="ru"'
+          curl -fsS "$url/sitemap.xml" | grep -q '<urlset'
+          echo "smoke ok"

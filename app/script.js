@@ -18,24 +18,25 @@
         }
     };
 
-    const IS_RU = document.documentElement.lang === 'ru';
-
-    const I18N = {
-        en: {
-            themeToLight: 'Switch to light theme',
-            themeToDark: 'Switch to dark theme',
-            copied: 'Email copied!',
-            copyFailed: 'Could not copy. Email: leonidovev@gmail.com'
-        },
-        ru: {
-            themeToLight: 'Включить светлую тему',
-            themeToDark: 'Включить тёмную тему',
-            copied: 'Email скопирован!',
-            copyFailed: 'Не удалось скопировать. Email: leonidovev@gmail.com'
-        }
+    // UI strings are rendered by PHP into #i18n, so nothing is duplicated here.
+    const I18N_FALLBACK = {
+        themeToLight: 'Switch to light theme',
+        themeToDark: 'Switch to dark theme',
+        copied: 'Email copied!',
+        copyFailed: 'Copy failed'
     };
 
-    const t = IS_RU ? I18N.ru : I18N.en;
+    const t = (() => {
+        const el = document.getElementById('i18n');
+
+        if (!el) return I18N_FALLBACK;
+
+        try {
+            return { ...I18N_FALLBACK, ...JSON.parse(el.textContent) };
+        } catch {
+            return I18N_FALLBACK;
+        }
+    })();
 
     // ==========================================
     // Safe localStorage wrapper

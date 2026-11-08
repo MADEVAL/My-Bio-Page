@@ -1,0 +1,252 @@
+{
+    "rev": 1,
+    "settings": {
+        "siteUrl": "https://bio.leonidov.dev",
+        "email": "leonidovev@gmail.com",
+        "themeDefault": "system",
+        "footerStart": 2016,
+        "photo": "assets/photo.jpg",
+        "ogImage": "assets/OG.jpg",
+        "personUrl": "https://leonidov.dev",
+        "worksFor": {
+            "name": "GLOBUS.studio",
+            "url": "https://globus.studio"
+        },
+        "lastmod": "2026-11-08"
+    },
+    "meta": {
+        "en": {
+            "title": "Yevhen Leonidov | Software Architect",
+            "description": "Software Developer & Architect - Links to all my projects and social profiles",
+            "ogAlt": "Yevhen Leonidov - Software Architect & Developer",
+            "siteName": "Yevhen Leonidov",
+            "jobTitle": "Software Architect & Developer",
+            "personName": "Yevhen Leonidov",
+            "alternateName": "Евгений Леонидов"
+        },
+        "ru": {
+            "title": "Евгений Леонидов | Архитектор ПО",
+            "description": "Разработчик и архитектор ПО - ссылки на все мои проекты и социальные сети",
+            "ogAlt": "Евгений Леонидов - архитектор ПО и разработчик",
+            "siteName": "Евгений Леонидов",
+            "jobTitle": "Архитектор ПО и разработчик",
+            "personName": "Евгений Леонидов",
+            "alternateName": "Yevhen Leonidov"
+        }
+    },
+    "profile": {
+        "en": {
+            "name": "Yevhen Leonidov",
+            "role": "Software Architect & Developer",
+            "bio": "Building scalable solutions & leading development teams",
+            "alt": "Yevhen Leonidov"
+        },
+        "ru": {
+            "name": "Евгений Леонидов",
+            "role": "Архитектор ПО и разработчик",
+            "bio": "Создаю масштабируемые решения и руковожу командами разработки",
+            "alt": "Евгений Леонидов"
+        }
+    },
+    "ui": {
+        "en": {
+            "switchLang": "switch to Russian",
+            "copyEmail": "Copy email address",
+            "themeToLight": "Switch to light theme",
+            "themeToDark": "Switch to dark theme",
+            "copied": "Email copied!",
+            "copyFailed": "Could not copy. Email: leonidovev@gmail.com",
+            "controls": "Page controls"
+        },
+        "ru": {
+            "switchLang": "переключить на английский",
+            "copyEmail": "Скопировать адрес email",
+            "themeToLight": "Включить светлую тему",
+            "themeToDark": "Включить тёмную тему",
+            "copied": "Email скопирован!",
+            "copyFailed": "Не удалось скопировать. Email: leonidovev@gmail.com",
+            "controls": "Управление страницей"
+        }
+    },
+    "sections": [
+        {
+            "id": "primary",
+            "label": { "en": null, "ru": null },
+            "srLabel": { "en": "Primary links", "ru": "Основные ссылки" },
+            "layout": "cards",
+            "order": 1,
+            "items": [
+                {
+                    "id": "telegram",
+                    "type": "link",
+                    "href": "https://t.me/leonidov_dev",
+                    "icon": "telegram",
+                    "order": 1,
+                    "visible": true,
+                    "title": { "en": "Telegram Channel", "ru": "Телеграм-канал" },
+                    "subtitle": { "en": "@leonidov_dev", "ru": "@leonidov_dev" }
+                },
+                {
+                    "id": "globus",
+                    "type": "featured",
+                    "href": "https://globus.studio",
+                    "logo": "assets/GLOBUS_WHITE.png",
+                    "order": 2,
+                    "visible": true,
+                    "title": { "en": "GLOBUS.studio", "ru": "GLOBUS.studio" },
+                    "subtitle": { "en": "Outsource development", "ru": "Аутсорс-разработка" }
+                }
+            ]
+        },
+        {
+            "id": "projects",
+            "label": { "en": "Projects", "ru": "Проекты" },
+            "srLabel": { "en": "Projects", "ru": "Проекты" },
+            "layout": "cards",
+            "order": 2,
+            "items": [
+                {
+                    "id": "botblocker",
+                    "type": "project",
+                    "href": "https://botblocker.top",
+                    "logo": "assets/bb_mini.png",
+                    "order": 1,
+                    "visible": true,
+                    "title": { "en": "BotBlocker", "ru": "BotBlocker" },
+                    "subtitle": { "en": "WordPress protection from bots", "ru": "Защита WordPress от ботов" }
+                }
+            ]
+        },
+        {
+            "id": "content",
+            "label": { "en": "Content", "ru": "Контент" },
+            "srLabel": { "en": "Content", "ru": "Контент" },
+            "layout": "cards",
+            "order": 3,
+            "items": [
+                {
+                    "id": "website",
+                    "type": "link",
+                    "href": "https://leonidov.dev",
+                    "icon": "globe",
+                    "order": 1,
+                    "visible": true,
+                    "title": { "en": "Personal Website & Blog", "ru": "Личный сайт и блог" },
+                    "subtitle": { "en": "leonidov.dev", "ru": "leonidov.dev" }
+                },
+                {
+                    "id": "medium",
+                    "type": "link",
+                    "href": "https://medium.com/@GLOBUS.studio",
+                    "icon": "medium",
+                    "order": 2,
+                    "visible": true,
+                    "title": { "en": "Medium", "ru": "Medium" },
+                    "subtitle": { "en": "Articles & notes", "ru": "Статьи и заметки" }
+                }
+            ]
+        },
+        {
+            "id": "social",
+            "label": { "en": "Social", "ru": "Соцсети" },
+            "srLabel": { "en": "Social", "ru": "Соцсети" },
+            "layout": "mixed",
+            "order": 4,
+            "items": [
+                {
+                    "id": "linkedin",
+                    "type": "link",
+                    "href": "https://www.linkedin.com/in/evgeniy-leonidov/",
+                    "icon": "linkedin",
+                    "order": 1,
+                    "visible": true,
+                    "title": { "en": "LinkedIn", "ru": "LinkedIn" },
+                    "subtitle": { "en": "Professional network", "ru": "Профессиональная сеть" }
+                },
+                {
+                    "id": "facebook",
+                    "type": "link",
+                    "href": "https://www.facebook.com/profile.php?id=100017514482500",
+                    "icon": "facebook",
+                    "order": 2,
+                    "visible": true,
+                    "title": { "en": "Facebook", "ru": "Facebook" },
+                    "subtitle": { "en": "Personal page", "ru": "Личная страница" }
+                },
+                {
+                    "id": "tiktok",
+                    "type": "social",
+                    "href": "https://www.tiktok.com/@yevhen_leonidov",
+                    "icon": "tiktok",
+                    "order": 3,
+                    "visible": true,
+                    "title": { "en": "TikTok", "ru": "TikTok" }
+                },
+                {
+                    "id": "x",
+                    "type": "social",
+                    "href": "https://x.com/LeonidovSoft",
+                    "icon": "x",
+                    "order": 4,
+                    "visible": true,
+                    "title": { "en": "X", "ru": "X" }
+                },
+                {
+                    "id": "threads",
+                    "type": "social",
+                    "href": "https://www.threads.net/@leonidovev",
+                    "icon": "threads",
+                    "order": 5,
+                    "visible": true,
+                    "title": { "en": "Threads", "ru": "Threads" }
+                },
+                {
+                    "id": "mastodon",
+                    "type": "social",
+                    "href": "https://mastodon.social/@globus_studio",
+                    "icon": "mastodon",
+                    "order": 6,
+                    "visible": true,
+                    "title": { "en": "Mastodon", "ru": "Mastodon" }
+                },
+                {
+                    "id": "reddit",
+                    "type": "social",
+                    "href": "https://www.reddit.com/user/ZestycloseElection84/",
+                    "icon": "reddit",
+                    "order": 7,
+                    "visible": true,
+                    "title": { "en": "Reddit", "ru": "Reddit" }
+                },
+                {
+                    "id": "tumblr",
+                    "type": "social",
+                    "href": "https://globusstudio.tumblr.com/",
+                    "icon": "tumblr",
+                    "order": 8,
+                    "visible": true,
+                    "title": { "en": "Tumblr", "ru": "Tumblr" }
+                }
+            ]
+        },
+        {
+            "id": "contact",
+            "label": { "en": null, "ru": null },
+            "srLabel": { "en": "Contact", "ru": "Контакты" },
+            "layout": "cards",
+            "order": 5,
+            "items": [
+                {
+                    "id": "email",
+                    "type": "email",
+                    "href": "mailto:leonidovev@gmail.com",
+                    "icon": "mail",
+                    "order": 1,
+                    "visible": true,
+                    "title": { "en": "Get in Touch", "ru": "Написать мне" },
+                    "subtitle": { "en": "leonidovev@gmail.com", "ru": "leonidovev@gmail.com" }
+                }
+            ]
+        }
+    ]
+}
