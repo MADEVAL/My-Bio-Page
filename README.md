@@ -205,9 +205,9 @@ Item types: `link`, `featured`, `project`, `social`, `email`. Section layouts: `
 
 ---
 
-## legacy/
+## .legacy/
 
-`legacy/` is a frozen copy of the static HTML version (commit `2b1a871`), kept for reference. It is not deployed and not maintained.
+`.legacy/` is a frozen copy of the static HTML version (commit `2b1a871`), kept for reference. It is not deployed and not maintained.
 
 ---
 
