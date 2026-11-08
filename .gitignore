@@ -9,9 +9,8 @@ app/content/*.tmp
 app/cache/
 
 # Secrets: the token lives in the private app directory, never in public/
-app/bio.token
-app/bio.token.lock
-bio.token
+app/bio.token*
+bio.token*
 
 # Local tooling
 node_modules/

@@ -20,25 +20,29 @@ final class App
     public function __construct(private readonly string $root, ?array $config = null)
     {
         $this->config = $config ?? self::readEnv($root);
-        $this->publicRoot = dirname($root) . '/public';
+        $configuredPublicRoot = $this->config['publicRoot'] ?? '';
+        $this->publicRoot = $configuredPublicRoot !== ''
+            ? $configuredPublicRoot
+            : (is_dir($root . '/public') ? $root . '/public' : dirname($root) . '/public');
         $this->content = new Content(
             $root . '/content/site.json',
             $root . '/content/site.seed.json',
             $root . '/content/backups',
             $root . '/content/.audit.jsonl',
+            $this->publicRoot,
         );
         $this->renderer = new Renderer($this->content, $root . '/templates/page.php');
     }
 
-    public function page(string $uri, ?string $ifNoneMatch = null): Response
+    public function page(string $uri, ?string $ifNoneMatch = null, bool $head = false): Response
     {
         try {
-            return $this->buildPage($uri, $ifNoneMatch);
+            return $this->buildPage($uri, $ifNoneMatch, $head);
         } catch (\Throwable $e) {
             return new Response(
                 500,
-                ['Content-Type' => 'text/plain; charset=utf-8'] + $this->securityHeaders(),
-                "Internal Server Error\n"
+                ['Content-Type' => 'text/plain; charset=utf-8'] + self::securityHeaders(),
+                $head ? '' : "Internal Server Error\n"
             );
         }
     }
@@ -55,7 +59,7 @@ final class App
         return $server->handle($body, $authorization, $actor);
     }
 
-    private function buildPage(string $uri, ?string $ifNoneMatch): Response
+    private function buildPage(string $uri, ?string $ifNoneMatch, bool $head): Response
     {
         $path = parse_url($uri, PHP_URL_PATH);
         $path = is_string($path) ? $path : '/';
@@ -66,8 +70,8 @@ final class App
                 [
                     'Content-Type' => 'application/xml; charset=utf-8',
                     'Cache-Control' => 'public, max-age=300',
-                ] + $this->securityHeaders(),
-                Seo::sitemap($this->content->load())
+                ] + self::securityHeaders(),
+                $head ? '' : Seo::sitemap($this->content->load())
             );
         }
 
@@ -81,8 +85,8 @@ final class App
                 [
                     'Content-Type' => 'text/plain; charset=utf-8',
                     'Cache-Control' => 'public, max-age=300',
-                ] + $this->securityHeaders(),
-                $body
+                ] + self::securityHeaders(),
+                $head ? '' : $body
             );
         }
 
@@ -95,8 +99,8 @@ final class App
         if ($lang === null) {
             return new Response(
                 404,
-                ['Content-Type' => 'text/plain; charset=utf-8'] + $this->securityHeaders(),
-                "Not found\n"
+                ['Content-Type' => 'text/plain; charset=utf-8'] + self::securityHeaders(),
+                $head ? '' : "Not found\n"
             );
         }
 
@@ -116,19 +120,19 @@ final class App
             }
         }
 
-        $etag = $cache->etag($lang);
+        $etag = 'W/"' . sha1($html) . '"';
         $headers = [
             'Content-Type' => 'text/html; charset=utf-8',
             'Content-Language' => $lang,
             'Cache-Control' => 'public, max-age=60, must-revalidate',
             'ETag' => $etag,
-        ] + $this->securityHeaders();
+        ] + self::securityHeaders();
 
         if ($ifNoneMatch !== null && trim($ifNoneMatch) === $etag) {
             return new Response(304, $headers, '');
         }
 
-        return new Response(200, $headers, $html);
+        return new Response(200, $headers, $head ? '' : $html);
     }
 
     /**
@@ -143,6 +147,7 @@ final class App
         $files = [
             $this->root . '/templates/page.php',
             $this->root . '/content/site.seed.json',
+            $this->root . '/content/site.json',
             $this->publicRoot . '/styles.css',
             $this->publicRoot . '/script.js',
         ];
@@ -155,7 +160,7 @@ final class App
     }
 
     /** @return array<string, string> */
-    private function securityHeaders(): array
+    public static function securityHeaders(): array
     {
         return [
             'X-Content-Type-Options' => 'nosniff',
@@ -163,8 +168,8 @@ final class App
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'camera=(), microphone=(), geolocation=()',
             'Cross-Origin-Opener-Policy' => 'same-origin',
-            'Strict-Transport-Security' => 'max-age=31536000; includeSubDomains',
-            'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+            'Strict-Transport-Security' => 'max-age=31536000',
+            'Content-Security-Policy' => "default-src 'self'; script-src 'self' " . Theme::cspHash() . " https://www.googletagmanager.com https://www.google-analytics.com; style-src 'self'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
         ];
     }
 
@@ -203,15 +208,21 @@ final class App
         $fromEnv = getenv('MCP_TOKEN');
 
         if (is_string($fromEnv) && trim($fromEnv) !== '') {
-            return trim($fromEnv);
+            $token = trim($fromEnv);
+
+            return Token::valid($token) ? $token : '';
         }
 
         $custom = getenv('BIO_TOKEN_FILE');
 
         if (is_string($custom) && trim($custom) !== '') {
-            return (new Token(trim($custom)))->ensure();
+            $token = (new Token(trim($custom)))->ensure();
+
+            return Token::valid($token) ? $token : '';
         }
 
-        return (new Token($root . '/bio.token'))->ensure();
+        $token = (new Token($root . '/bio.token'))->ensure();
+
+        return Token::valid($token) ? $token : '';
     }
 }

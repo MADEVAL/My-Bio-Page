@@ -6,6 +6,14 @@ use Bio\Token;
 
 Harness::group('Token');
 
+Harness::test('validates token strength', function (): void {
+    assertTrue(Token::valid(str_repeat('a', 32)));
+    assertTrue(Token::valid(str_repeat('f', 64)));
+    assertFalse(Token::valid(str_repeat('a', 31)));
+    assertFalse(Token::valid(str_repeat('a', 31) . ' '));
+    assertFalse(Token::valid(str_repeat('a', 31) . '!'));
+});
+
 Harness::test('returns an existing token unchanged', function (): void {
     $root = makeWorkspace();
     $file = $root . '/token';

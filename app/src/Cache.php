@@ -7,8 +7,8 @@ use RuntimeException;
 
 /**
  * Rendered HTML on disk. The key folds in the content revision, the template,
- * the public assets and every PHP source file, so a deploy invalidates itself
- * without anyone having to run a command on the server.
+ * the public assets and every PHP source file, using content hashes, so a
+ * deploy or out-of-band edit invalidates itself without a command on the server.
  */
 final class Cache
 {
@@ -61,17 +61,13 @@ final class Cache
         }
     }
 
-    public function etag(string $lang = ''): string
-    {
-        return 'W/"' . sha1($this->key . '|' . $lang) . '"';
-    }
-
     public static function keyFor(array $data, array $files): string
     {
         $parts = [(string) $data['rev']];
 
         foreach ($files as $file) {
-            $parts[] = is_file($file) ? (string) filemtime($file) : '0';
+            $hash = is_file($file) ? hash_file('sha1', $file) : false;
+            $parts[] = is_string($hash) ? $hash : '0';
         }
 
         return sha1(implode('|', $parts));
@@ -79,18 +75,10 @@ final class Cache
 
     private function write(string $path, string $data): void
     {
-        $tmp = $path . '.tmp';
-        $handle = @fopen($tmp, 'xb');
+        $tmp = $path . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        $written = @file_put_contents($tmp, $data);
 
-        if ($handle === false) {
-            throw new RuntimeException('Cannot write cache file');
-        }
-
-        $written = fwrite($handle, $data);
-        $flushed = fflush($handle);
-        fclose($handle);
-
-        if ($written !== strlen($data) || $flushed === false || !@rename($tmp, $path)) {
+        if ($written !== strlen($data) || !@rename($tmp, $path)) {
             @unlink($tmp);
 
             throw new RuntimeException('Cannot write cache file');

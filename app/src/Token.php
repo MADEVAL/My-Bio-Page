@@ -16,6 +16,15 @@ final class Token
     {
     }
 
+    /**
+     * Tokens must be at least 32 URL-safe characters. The generated token is
+     * 64 lowercase hex characters; a shorter value is treated as unset.
+     */
+    public static function valid(string $token): bool
+    {
+        return preg_match('~^[A-Za-z0-9_-]{32,}$~', $token) === 1;
+    }
+
     public function ensure(): string
     {
         $existing = $this->read();

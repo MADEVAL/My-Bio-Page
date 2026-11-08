@@ -38,8 +38,12 @@ final class Mcp
         $this->actor = $actor;
         $payload = json_decode($body, true);
 
-        if (!is_array($payload) || ($payload['jsonrpc'] ?? null) !== '2.0' || !is_string($payload['method'] ?? null)) {
+        if (json_last_error() !== JSON_ERROR_NONE) {
             return $this->error(null, -32700, 'Parse error');
+        }
+
+        if (!is_array($payload) || ($payload['jsonrpc'] ?? null) !== '2.0' || !is_string($payload['method'] ?? null)) {
+            return $this->error(null, -32600, 'Invalid Request');
         }
 
         // A request without an id is a notification: acknowledge and stop.
@@ -151,7 +155,16 @@ final class Mcp
     {
         $data = $this->content->load();
         $sectionFilter = is_string($args['section'] ?? null) ? $args['section'] : null;
-        $visibleFilter = isset($args['visible']) ? (bool) $args['visible'] : null;
+        $visibleFilter = null;
+
+        if (array_key_exists('visible', $args)) {
+            if (!is_bool($args['visible'])) {
+                throw new InvalidArgumentException('visible must be a boolean');
+            }
+
+            $visibleFilter = $args['visible'];
+        }
+
         $lang = is_string($args['lang'] ?? null) ? $args['lang'] : null;
         $out = [];
 
@@ -221,7 +234,7 @@ final class Mcp
             $created = $item['id'];
 
             return $d;
-        });
+        }, 'create_link');
 
         return ['rev' => $data['rev'], 'id' => $created];
     }
@@ -233,6 +246,20 @@ final class Mcp
         $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $id): array {
             [$s, $i] = $this->locate($d, $id);
             $item = $d['sections'][$s]['items'][$i];
+            $hasIcon = array_key_exists('icon', $args);
+            $hasLogo = array_key_exists('logo', $args);
+
+            if ($hasIcon && $hasLogo) {
+                throw new InvalidArgumentException('An item cannot have both icon and logo');
+            }
+
+            if ($hasIcon) {
+                unset($item['logo']);
+            }
+
+            if ($hasLogo) {
+                unset($item['icon']);
+            }
 
             foreach (['title', 'subtitle', 'href', 'type', 'icon', 'logo', 'visible'] as $key) {
                 if (array_key_exists($key, $args)) {
@@ -240,14 +267,10 @@ final class Mcp
                 }
             }
 
-            if (isset($item['icon'], $item['logo'])) {
-                throw new InvalidArgumentException('An item cannot have both icon and logo');
-            }
-
             $d['sections'][$s]['items'][$i] = $item;
 
             return $d;
-        });
+        }, 'update_link');
 
         return ['rev' => $data['rev'], 'id' => $id];
     }
@@ -280,7 +303,7 @@ final class Mcp
             $d['sections'][$targetIndex]['items'] = $this->reorder($d['sections'][$targetIndex]['items']);
 
             return $d;
-        });
+        }, 'move_link');
 
         return ['rev' => $data['rev'], 'id' => $id, 'section' => $target];
     }
@@ -298,7 +321,7 @@ final class Mcp
             $d['sections'][$s]['items'][$i]['visible'] = $args['visible'];
 
             return $d;
-        });
+        }, 'set_visibility');
 
         return ['rev' => $data['rev'], 'id' => $id, 'visible' => $args['visible']];
     }
@@ -323,7 +346,7 @@ final class Mcp
             }
 
             return $d;
-        });
+        }, 'delete_link');
 
         return ['rev' => $data['rev'], 'id' => $id, 'hard' => $hard];
     }
@@ -347,7 +370,7 @@ final class Mcp
             }
 
             return $d;
-        });
+        }, 'update_settings');
 
         return ['rev' => $data['rev'], 'applied' => $applied];
     }
@@ -478,7 +501,15 @@ final class Mcp
 
     private function rev(array $args): ?int
     {
-        return isset($args['rev']) ? (int) $args['rev'] : null;
+        if (!array_key_exists('rev', $args)) {
+            return null;
+        }
+
+        if (!is_int($args['rev'])) {
+            throw new InvalidArgumentException('rev must be an integer');
+        }
+
+        return $args['rev'];
     }
 
     private function authorized(?string $header): bool
@@ -500,7 +531,7 @@ final class Mcp
     {
         return new Response(
             $status,
-            ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store', 'X-Content-Type-Options' => 'nosniff'] + $extra,
+            $extra + ['Content-Type' => 'application/json; charset=utf-8', 'Cache-Control' => 'no-store'] + \Bio\App::securityHeaders(),
             $this->encode($payload)
         );
     }
@@ -519,21 +550,25 @@ final class Mcp
             [
                 'name' => 'get_content',
                 'description' => 'Read the whole site content tree, including the current revision.',
+                'annotations' => ['readOnlyHint' => true],
                 'inputSchema' => ['type' => 'object', 'properties' => (object) []],
             ],
             [
                 'name' => 'get_schema',
                 'description' => 'Read the complete JSON Schema of the content tree before editing it.',
+                'annotations' => ['readOnlyHint' => true],
                 'inputSchema' => ['type' => 'object', 'properties' => (object) []],
             ],
             [
                 'name' => 'list_sections',
                 'description' => 'List sections with their ids, labels, layout and item counts.',
+                'annotations' => ['readOnlyHint' => true],
                 'inputSchema' => ['type' => 'object', 'properties' => (object) []],
             ],
             [
                 'name' => 'list_links',
                 'description' => 'List links, optionally filtered by section or visibility. lang localizes titles.',
+                'annotations' => ['readOnlyHint' => true],
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => [
@@ -549,6 +584,10 @@ final class Mcp
                 'inputSchema' => [
                     'type' => 'object',
                     'required' => ['section', 'href', 'title'],
+                    'oneOf' => [
+                        ['required' => ['icon']],
+                        ['required' => ['logo']],
+                    ],
                     'properties' => [
                         'section' => ['type' => 'string'],
                         'id' => ['type' => 'string', 'description' => 'Optional slug; derived from the title when omitted'],
@@ -613,6 +652,7 @@ final class Mcp
             [
                 'name' => 'delete_link',
                 'description' => 'Delete a link. Soft by default (hides it); hard=true removes it.',
+                'annotations' => ['destructiveHint' => true],
                 'inputSchema' => [
                     'type' => 'object',
                     'required' => ['id'],
@@ -640,6 +680,7 @@ final class Mcp
             [
                 'name' => 'preview',
                 'description' => 'Render a language to HTML without touching the cache.',
+                'annotations' => ['readOnlyHint' => true],
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => ['lang' => ['type' => 'string', 'enum' => ['en', 'ru']]],
@@ -648,6 +689,7 @@ final class Mcp
             [
                 'name' => 'publish',
                 'description' => 'Invalidate the HTML cache so the next request renders fresh content.',
+                'annotations' => ['destructiveHint' => false, 'idempotentHint' => true],
                 'inputSchema' => ['type' => 'object', 'properties' => (object) []],
             ],
         ];
@@ -728,6 +770,10 @@ final class Mcp
                                 'items' => [
                                     'type' => 'object',
                                     'required' => ['id', 'type', 'href', 'order', 'visible', 'title'],
+                                    'oneOf' => [
+                                        ['required' => ['icon']],
+                                        ['required' => ['logo']],
+                                    ],
                                     'properties' => [
                                         'id' => ['type' => 'string', 'pattern' => '^[a-z][a-z0-9-]{0,40}$'],
                                         'type' => ['type' => 'string', 'enum' => Content::ITEM_TYPES],

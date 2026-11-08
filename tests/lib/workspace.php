@@ -9,7 +9,7 @@ function makeWorkspace(): string
 {
     $root = sys_get_temp_dir() . '/bio-' . bin2hex(random_bytes(6));
 
-    foreach (['content', 'templates', 'cache'] as $dir) {
+    foreach (['content', 'templates', 'cache', 'public/assets'] as $dir) {
         mkdir($root . '/' . $dir, 0775, true);
     }
 
@@ -17,6 +17,12 @@ function makeWorkspace(): string
     copy(APP_DIR . '/content/site.seed.json', $root . '/content/site.seed.json');
     file_put_contents($root . '/styles.css', '/* test fixture */');
     file_put_contents($root . '/script.js', '/* test fixture */');
+    file_put_contents($root . '/public/styles.css', '/* test fixture */');
+    file_put_contents($root . '/public/script.js', '/* test fixture */');
+
+    foreach (['photo.jpg', 'OG.jpg', 'GLOBUS_WHITE.png', 'bb_mini.png', 'favicon.svg'] as $asset) {
+        copy(PUBLIC_DIR . '/assets/' . $asset, $root . '/public/assets/' . $asset);
+    }
 
     return $root;
 }
@@ -70,6 +76,7 @@ function makeContent(string $root, ?string $file = null, ?string $backupDir = nu
         $root . '/content/site.seed.json',
         $backupDir ?? $root . '/content/backups',
         $root . '/content/.audit.jsonl',
+        $root . '/public',
     );
 }
 

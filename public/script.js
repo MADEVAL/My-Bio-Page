@@ -109,6 +109,26 @@
     };
 
     // ==========================================
+    // Analytics (GA4 is opt-in via data-ga4)
+    // ==========================================
+    const Analytics = {
+        init() {
+            const id = document.documentElement.getAttribute('data-ga4');
+            if (!id) return;
+
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = function () { window.dataLayer.push(arguments); };
+            window.gtag('js', new Date());
+            window.gtag('config', id);
+
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+            document.head.appendChild(script);
+        }
+    };
+
+    // ==========================================
     // Email Copy Handler
     // ==========================================
     const EmailCopy = {
@@ -135,18 +155,20 @@
             }
 
             // Legacy fallback
+            let field = null;
+
             try {
-                const field = document.createElement('textarea');
+                field = document.createElement('textarea');
                 field.value = text;
                 field.setAttribute('readonly', '');
                 field.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
                 document.body.appendChild(field);
                 field.select();
-                const ok = document.execCommand('copy');
-                field.remove();
-                return ok;
+                return document.execCommand('copy');
             } catch {
                 return false;
+            } finally {
+                if (field) field.remove();
             }
         }
     };
@@ -222,6 +244,7 @@
     // ==========================================
     function init() {
         ThemeController.init();
+        Analytics.init();
         EmailCopy.init();
         KeyboardNav.init();
         RippleEffect.init();

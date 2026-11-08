@@ -57,6 +57,24 @@ Harness::test('index.php refuses anything but GET and HEAD', function (): void {
     }
 });
 
+Harness::test('index.php returns an empty body for HEAD', function (): void {
+    $_SERVER['REQUEST_METHOD'] = 'HEAD';
+    $_SERVER['REQUEST_URI'] = '/';
+
+    try {
+        $body = withoutHeaderWarnings(function (): string {
+            ob_start();
+            require PUBLIC_DIR . '/index.php';
+
+            return (string) ob_get_clean();
+        });
+
+        assertSame('', $body);
+    } finally {
+        unset($_SERVER['REQUEST_METHOD']);
+    }
+});
+
 Harness::test('mcp.php refuses anything but POST', function (): void {
     $_SERVER['REQUEST_METHOD'] = 'GET';
 
@@ -82,6 +100,34 @@ Harness::test('mcp.php answers unauthenticated POSTs', function (): void {
     });
 
     assertContains('Unauthorized', $body);
+});
+
+Harness::test('mcp.php reads an authorized request body', function (): void {
+    $token = str_repeat('a', 64);
+    $previous = getenv('MCP_TOKEN');
+    putenv('MCP_TOKEN=' . $token);
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
+    unset($_SERVER['CONTENT_LENGTH']);
+
+    try {
+        $body = withoutHeaderWarnings(function (): string {
+            ob_start();
+            require PUBLIC_DIR . '/mcp.php';
+
+            return (string) ob_get_clean();
+        });
+
+        assertContains('Parse error', $body);
+    } finally {
+        if ($previous === false) {
+            putenv('MCP_TOKEN');
+        } else {
+            putenv('MCP_TOKEN=' . $previous);
+        }
+
+        unset($_SERVER['HTTP_AUTHORIZATION']);
+    }
 });
 
 Harness::test('mcp.php rejects oversized bodies', function (): void {

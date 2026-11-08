@@ -414,6 +414,7 @@ const contrastScript = () => {
         await page.goto(BASE + '/', { waitUntil: 'load' });
         await page.waitForTimeout(1200);
         const card = page.locator('.link-card.project-card');
+        await card.evaluate((el) => el.setAttribute('href', '/ru.html'));
         await page.evaluate(() => {
             window.__rippleSeen = false;
             const target = document.querySelector('.link-card.project-card');
@@ -462,10 +463,10 @@ const contrastScript = () => {
     for (const theme of ['dark', 'light']) {
         for (const [url, label] of [[BASE + '/', 'EN'], [BASE + '/ru.html', 'RU']]) {
             const { ctx, page } = await newPage(browser, { reducedMotion: 'reduce' });
+            await page.addInitScript({ path: AXE });
             await page.addInitScript((t) => localStorage.setItem('linkbio-theme', t), theme);
             await page.goto(url, { waitUntil: 'load' });
             await page.waitForTimeout(700);
-            await page.addScriptTag({ path: AXE });
             const res = await page.evaluate(async (tags) => {
                 return await window.axe.run(document, { runOnly: { type: 'tag', values: tags } });
             }, axeTags);

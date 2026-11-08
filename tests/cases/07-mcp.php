@@ -87,15 +87,15 @@ Harness::test('answers parse errors', function (): void {
         $app = mcpApp($root);
 
         $cases = [
-            'not json' => 'nope',
-            'wrong jsonrpc' => '{"jsonrpc":"1.0","id":1,"method":"ping"}',
-            'missing method' => '{"jsonrpc":"2.0","id":1}',
+            'not json' => ['nope', -32700],
+            'wrong jsonrpc' => ['{"jsonrpc":"1.0","id":1,"method":"ping"}', -32600],
+            'missing method' => ['{"jsonrpc":"2.0","id":1}', -32600],
         ];
 
-        foreach ($cases as $label => $body) {
+        foreach ($cases as $label => [$body, $code]) {
             $response = $app->mcp($body, 'Bearer secret');
             $json = json_decode($response->body, true);
-            assertSame(-32700, $json['error']['code'], $label);
+            assertSame($code, $json['error']['code'], $label);
         }
     } finally {
         removeWorkspace($root);
@@ -260,6 +260,10 @@ Harness::test('filters links by section, visibility and language', function (): 
 
         $ru = callTool($app, 'list_links', ['section' => 'primary', 'lang' => 'ru']);
         assertSame('Телеграм-канал', $ru['data']['items'][0]['title']);
+
+        $bad = callTool($app, 'list_links', ['visible' => 'false']);
+        assertTrue($bad['isError']);
+        assertContains('visible must be a boolean', $bad['text']);
     } finally {
         removeWorkspace($root);
     }
@@ -402,6 +406,24 @@ Harness::test('rejects invalid content with a tool error', function (): void {
     }
 });
 
+Harness::test('rejects a missing logo asset', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $result = callTool(mcpApp($root), 'create_link', [
+            'section' => 'content',
+            'href' => 'https://example.com',
+            'logo' => 'assets/nope.png',
+            'title' => ['en' => 'Bad logo', 'ru' => 'Плохой логотип'],
+        ]);
+
+        assertTrue($result['isError']);
+        assertContains('existing asset', $result['text']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('updates a link', function (): void {
     $root = makeWorkspace();
 
@@ -428,11 +450,50 @@ Harness::test('refuses icon and logo at the same time', function (): void {
     try {
         $result = callTool(mcpApp($root), 'update_link', [
             'id' => 'telegram',
-            'logo' => 'assets/x.png',
+            'icon' => 'globe',
+            'logo' => 'assets/bb_mini.png',
         ]);
 
         assertTrue($result['isError']);
         assertContains('both icon and logo', $result['text']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('switches an item from icon to logo', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+        $result = callTool($app, 'update_link', [
+            'id' => 'telegram',
+            'logo' => 'assets/bb_mini.png',
+        ]);
+
+        assertFalse($result['isError'], $result['text']);
+
+        $back = callTool($app, 'update_link', [
+            'id' => 'globus',
+            'icon' => 'globe',
+        ]);
+        assertFalse($back['isError'], $back['text']);
+
+        $content = callTool($app, 'get_content')['data']['content'];
+
+        foreach ($content['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['id'] === 'telegram') {
+                    assertSame('assets/bb_mini.png', $item['logo']);
+                    assertFalse(isset($item['icon']));
+                }
+
+                if ($item['id'] === 'globus') {
+                    assertSame('globe', $item['icon']);
+                    assertFalse(isset($item['logo']));
+                }
+            }
+        }
     } finally {
         removeWorkspace($root);
     }
@@ -560,6 +621,22 @@ Harness::test('rejects invalid settings', function (): void {
     }
 });
 
+Harness::test('rejects changing an email link away from settings.email', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $result = callTool(mcpApp($root), 'update_link', [
+            'id' => 'email',
+            'href' => 'mailto:other@example.com',
+        ]);
+
+        assertTrue($result['isError']);
+        assertContains('email href must match settings.email', $result['text']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('keeps the visible email in sync with settings.email', function (): void {
     $root = makeWorkspace();
 
@@ -624,6 +701,10 @@ Harness::test('surfaces revision conflicts', function (): void {
         $stale = callTool($app, 'update_settings', ['footerStart' => 2021, 'rev' => 1]);
         assertTrue($stale['isError']);
         assertContains('Revision conflict', $stale['text']);
+
+        $badRev = callTool($app, 'update_settings', ['footerStart' => 2021, 'rev' => '1']);
+        assertTrue($badRev['isError']);
+        assertContains('rev must be an integer', $badRev['text']);
 
         $fresh = callTool($app, 'update_settings', ['footerStart' => 2021, 'rev' => 2]);
         assertFalse($fresh['isError'], $fresh['text']);

@@ -21,6 +21,11 @@ final class Content
 
     private const LANGS = ['en', 'ru'];
     private const MAX_BACKUPS = 20;
+    private const MAX_SECTIONS = 50;
+    private const MAX_ITEMS = 500;
+    private const MAX_TEXT_BYTES = 2000;
+    private const MAX_HREF_BYTES = 2048;
+    private const MAX_CONTENT_BYTES = 1_048_576;
 
     private ?array $data = null;
 
@@ -29,6 +34,7 @@ final class Content
         private readonly string $seed,
         private readonly string $backupDir,
         private readonly string $auditFile,
+        private readonly ?string $assetRoot = null,
     ) {
     }
 
@@ -59,7 +65,7 @@ final class Content
      *
      * @param callable(array): array $mutator
      */
-    public function mutate(string $actor, ?int $expectedRev, callable $mutator): array
+    public function mutate(string $actor, ?int $expectedRev, callable $mutator, string $action = 'mutate'): array
     {
         $handle = $this->lock();
 
@@ -80,7 +86,7 @@ final class Content
 
             $this->backup($current['rev']);
             $this->write($next);
-            $this->audit($actor, $next['rev']);
+            $this->audit($actor, $next['rev'], $action);
 
             return $this->data = $next;
         } finally {
@@ -97,7 +103,13 @@ final class Content
 
         $this->validateSettings($data['settings'] ?? null);
         $this->validateLanguages($data);
-        $this->validateSections($data['sections'] ?? null);
+        $this->validateSections($data['sections'] ?? null, (string) ($data['settings']['email'] ?? ''));
+
+        $encoded = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if (is_string($encoded) && strlen($encoded) > self::MAX_CONTENT_BYTES) {
+            $this->fail('content', 'must not exceed 1 MiB');
+        }
 
         return $data;
     }
@@ -118,6 +130,12 @@ final class Content
             $this->fail('settings.siteUrl', 'must be an https URL');
         }
 
+        $siteParts = parse_url($settings['siteUrl']);
+
+        if (!is_array($siteParts) || isset($siteParts['query']) || isset($siteParts['fragment'])) {
+            $this->fail('settings.siteUrl', 'must not contain a query string or fragment');
+        }
+
         if (
             preg_match('~^https?://~', $settings['personUrl']) !== 1
             || filter_var($settings['personUrl'], FILTER_VALIDATE_URL) === false
@@ -128,6 +146,16 @@ final class Content
         foreach (['photo', 'ogImage'] as $key) {
             if (preg_match('~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg|svg)$~', $settings[$key]) !== 1) {
                 $this->fail("settings.{$key}", 'must be a path under assets/');
+            }
+
+            $this->validateAsset($settings[$key], "settings.{$key}");
+        }
+
+        if ($this->assetRoot !== null) {
+            $size = @getimagesize($this->assetRoot . '/' . $settings['ogImage']);
+
+            if ($size === false || $size[0] !== 1200 || $size[1] !== 630) {
+                $this->fail('settings.ogImage', 'must be a 1200x630 raster image');
             }
         }
 
@@ -176,55 +204,66 @@ final class Content
         }
     }
 
+    private function validateAsset(string $path, string $field): void
+    {
+        if ($this->assetRoot !== null && !is_file($this->assetRoot . '/' . $path)) {
+            $this->fail($field, 'must point to an existing asset');
+        }
+    }
+
     private function validateLanguages(array $data): void
     {
         foreach (self::LANGS as $lang) {
-            $meta = $data['meta'][$lang] ?? null;
+            $this->validateTextObject(
+                $data['meta'][$lang] ?? null,
+                "meta.{$lang}",
+                ['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']
+            );
+            $this->validateTextObject(
+                $data['profile'][$lang] ?? null,
+                "profile.{$lang}",
+                ['name', 'role', 'bio', 'alt']
+            );
+            $this->validateTextObject(
+                $data['ui'][$lang] ?? null,
+                "ui.{$lang}",
+                ['switchLang', 'copyEmail', 'themeToLight', 'themeToDark', 'copied', 'copyFailed', 'controls']
+            );
+        }
+    }
 
-            if (!is_array($meta)) {
-                $this->fail("meta.{$lang}", 'must be an object');
+    /** @param list<string> $keys */
+    private function validateTextObject(mixed $object, string $path, array $keys): void
+    {
+        if (!is_array($object)) {
+            $this->fail($path, 'must be an object');
+        }
+
+        foreach ($keys as $key) {
+            if (!is_string($object[$key] ?? null) || $object[$key] === '') {
+                $this->fail("{$path}.{$key}", 'must be a non-empty string');
             }
 
-            foreach (['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName'] as $key) {
-                if (!is_string($meta[$key] ?? null) || $meta[$key] === '') {
-                    $this->fail("meta.{$lang}.{$key}", 'must be a non-empty string');
-                }
-            }
-
-            $profile = $data['profile'][$lang] ?? null;
-
-            if (!is_array($profile)) {
-                $this->fail("profile.{$lang}", 'must be an object');
-            }
-
-            foreach (['name', 'role', 'bio', 'alt'] as $key) {
-                if (!is_string($profile[$key] ?? null) || $profile[$key] === '') {
-                    $this->fail("profile.{$lang}.{$key}", 'must be a non-empty string');
-                }
-            }
-
-            $ui = $data['ui'][$lang] ?? null;
-
-            if (!is_array($ui)) {
-                $this->fail("ui.{$lang}", 'must be an object');
-            }
-
-            foreach (['switchLang', 'copyEmail', 'themeToLight', 'themeToDark', 'copied', 'copyFailed', 'controls'] as $key) {
-                if (!is_string($ui[$key] ?? null) || $ui[$key] === '') {
-                    $this->fail("ui.{$lang}.{$key}", 'must be a non-empty string');
-                }
+            if (strlen($object[$key]) > self::MAX_TEXT_BYTES) {
+                $this->fail("{$path}.{$key}", 'is too long');
             }
         }
     }
 
-    private function validateSections(mixed $sections): void
+    private function validateSections(mixed $sections, string $email): void
     {
         if (!is_array($sections) || $sections === [] || !array_is_list($sections)) {
             $this->fail('sections', 'must be a non-empty list');
         }
 
+        if (count($sections) > self::MAX_SECTIONS) {
+            $this->fail('sections', 'must not contain more than 50 sections');
+        }
+
         $sectionIds = [];
         $itemIds = [];
+        $itemCount = 0;
+        $emailItems = 0;
 
         foreach ($sections as $index => $section) {
             $path = "sections[{$index}]";
@@ -261,6 +300,11 @@ final class Content
             }
 
             $this->validateItems($section['items'], $path);
+            $itemCount += count($section['items']);
+
+            if ($itemCount > self::MAX_ITEMS) {
+                $this->fail('sections', 'must not contain more than 500 items');
+            }
 
             foreach ($section['items'] as $item) {
                 $itemId = $item['id'] ?? '';
@@ -270,6 +314,18 @@ final class Content
                 }
 
                 $itemIds[$itemId] = true;
+
+                if ($item['type'] === 'email') {
+                    $emailItems++;
+
+                    if ($emailItems > 1) {
+                        $this->fail("{$path}.items", 'must not contain more than one email item');
+                    }
+
+                    if ($item['href'] !== 'mailto:' . $email) {
+                        $this->fail("{$path}.items", 'email href must match settings.email');
+                    }
+                }
             }
         }
     }
@@ -299,6 +355,10 @@ final class Content
                 $this->fail("{$path}.href", 'must be an http(s) or mailto URL');
             }
 
+            if (strlen($href) > self::MAX_HREF_BYTES) {
+                $this->fail("{$path}.href", 'is too long');
+            }
+
             if ($item['type'] === 'email' && !str_starts_with($href, 'mailto:')) {
                 $this->fail("{$path}.href", 'must be a mailto URL for email items');
             }
@@ -316,6 +376,10 @@ final class Content
 
             if ($hasLogo && (!is_string($item['logo']) || preg_match('~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg|svg)$~', $item['logo']) !== 1)) {
                 $this->fail("{$path}.logo", 'must be a path under assets/');
+            }
+
+            if ($hasLogo) {
+                $this->validateAsset($item['logo'], "{$path}.logo");
             }
 
             if (!is_int($item['order'] ?? null) || $item['order'] < 1) {
@@ -354,6 +418,10 @@ final class Content
             if (!is_string($value) || (!$allowEmpty && $value === '')) {
                 $this->fail("{$path}.{$lang}", 'must be a non-empty string');
             }
+
+            if (strlen($value) > self::MAX_TEXT_BYTES) {
+                $this->fail("{$path}.{$lang}", 'is too long');
+            }
         }
     }
 
@@ -379,7 +447,9 @@ final class Content
 
     private function backup(int $rev): void
     {
-        if (!is_file($this->file)) {
+        $source = is_file($this->file) ? $this->file : $this->seed;
+
+        if (!is_file($source)) {
             return;
         }
 
@@ -389,7 +459,7 @@ final class Content
 
         $name = sprintf('site-rev%03d.json', $rev);
 
-        if (!@copy($this->file, $this->backupDir . '/' . $name)) {
+        if (!@copy($source, $this->backupDir . '/' . $name)) {
             throw new RuntimeException('Cannot write backup file');
         }
 
@@ -429,11 +499,12 @@ final class Content
         }
     }
 
-    private function audit(string $actor, int $rev): void
+    private function audit(string $actor, int $rev, string $action): void
     {
         $line = json_encode([
             'at' => date(DATE_ATOM),
             'actor' => $actor,
+            'action' => $action,
             'rev' => $rev,
         ], JSON_UNESCAPED_SLASHES) . "\n";
 

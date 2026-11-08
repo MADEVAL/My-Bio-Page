@@ -4,6 +4,11 @@
 Options -Indexes
 DirectoryIndex index.php
 
+# Pass the bearer token to PHP when Apache/FastCGI strips the header by default.
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
@@ -25,3 +30,13 @@ DirectoryIndex index.php
 <FilesMatch "(^#.*#|\.(bak|dist|orig|swp|tmp|log|env))$">
     Require all denied
 </FilesMatch>
+
+# The PHP front controllers send these too; this covers static assets.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>

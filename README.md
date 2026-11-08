@@ -1,6 +1,6 @@
 # Self-Hosted Link-in-Bio with MCP Server
 
-A production-ready, content-driven link-in-bio page built on PHP 8.5. One JSON file powers both languages, the meta tags, JSON-LD, the sitemap, and a 12-tool MCP server for AI-assisted content changes.
+A production-ready, content-driven link-in-bio page built on PHP 8.1+ (tested on 8.5). One JSON file powers both languages, the meta tags, JSON-LD, the sitemap, and a 12-tool MCP server for AI-assisted content changes.
 
 No framework. No runtime dependencies. No build step.
 
@@ -24,7 +24,7 @@ The result is a small, fast, SEO-friendly page that can be edited by a human or 
 
 | Area | What you get |
 |---|---|
-| Rendering | PHP 8.5, escaped output, no template engine |
+| Rendering | PHP 8.1+, escaped output, no template engine |
 | Content | One JSON tree for EN/RU, links, metadata, SEO and analytics |
 | Editing | 12 MCP tools, optimistic concurrency via `rev` |
 | Performance | Rendered HTML cache with deploy-aware invalidation |
@@ -32,7 +32,7 @@ The result is a small, fast, SEO-friendly page that can be edited by a human or 
 | Accessibility | WCAG 2.0–2.2 AA, axe-core clean, keyboard support, reduced motion |
 | Security | Token auth, strict validation, atomic writes, CSP and hardening headers |
 | Operations | No daemons, no queues, no database, no Composer, no NPM at runtime |
-| Testing | 167 unit tests, 100% line coverage, 14 HTTP checks, 74 browser checks |
+| Testing | 187 unit tests, 100% line coverage, 16 HTTP checks, 74 browser checks |
 
 ---
 
@@ -53,7 +53,7 @@ request ──► web server ──► public/index.php ──► App ──► 
 
 ## Quick start
 
-Requirements: PHP 8.5 with Xdebug only for coverage runs.
+Requirements: PHP 8.1 or newer (tested on 8.5); Xdebug only for coverage runs.
 
 ```bash
 php -S 127.0.0.1:8123 -t public tests/router.php
@@ -87,6 +87,7 @@ app/                       # private, never served by the web server
 │   ├── Cache.php          # rendered HTML + deploy-aware key
 │   ├── Mcp.php            # JSON-RPC, 12 tools
 │   ├── Token.php          # token provisioning
+│   ├── Theme.php          # pre-paint theme bootstrap + CSP hash
 │   ├── Icons.php          # inline SVG registry
 │   └── ...
 ├── templates/page.php     # the only template
@@ -95,7 +96,7 @@ app/                       # private, never served by the web server
 ├── cache/                 # rendered HTML (gitignored)
 └── bio.token              # MCP token (0600, gitignored, outside public/)
 
-tests/                     # 167 unit, 14 HTTP, 74 Playwright checks
+tests/                     # 187 unit, 16 HTTP, 74 Playwright checks
 ```
 
 ---
@@ -127,7 +128,7 @@ Supported section layouts:
 
 Icons come from a fixed inline-SVG registry. An item can use `logo` instead of `icon`, including social buttons.
 
-Validation rejects invalid content before it reaches disk: bad schemes, unsafe asset paths, duplicate IDs, empty required translations, impossible dates, invalid GA4 IDs, and inconsistent email items.
+Validation rejects invalid content before it reaches disk: bad schemes, unsafe asset paths, missing asset files, duplicate IDs, empty required translations, impossible dates, invalid GA4 IDs, inconsistent email items, oversized fields and content, and OG images that are not 1200×630. An item must have exactly one of `icon` or `logo`; the site has at most one email item and its `href` must match `settings.email`.
 
 ---
 
@@ -141,7 +142,7 @@ Authorization: Bearer <MCP_TOKEN>
 Content-Type: application/json
 ```
 
-JSON-RPC 2.0 over Streamable HTTP. JSON responses only, POST only, no SSE stream.
+JSON-RPC 2.0 over Streamable HTTP. JSON responses only, POST only, no SSE stream. Request bodies are capped at 1 MiB; the token is checked before the body is read.
 
 ```bash
 curl -s https://your-domain.com/mcp.php \
@@ -159,7 +160,7 @@ curl -s https://your-domain.com/mcp.php \
 | `list_sections` | Sections, labels, layouts, item counts |
 | `list_links` | Links filtered by section or visibility; `lang` localizes titles |
 | `create_link` | Add a link at an optional position |
-| `update_link` | Patch title, subtitle, href, type, icon, visibility |
+| `update_link` | Patch title, subtitle, href, type, icon/logo, visibility |
 | `move_link` | Move between sections or positions |
 | `set_visibility` | Hide without deleting |
 | `delete_link` | Soft delete by default; `hard: true` removes it |
@@ -167,7 +168,7 @@ curl -s https://your-domain.com/mcp.php \
 | `preview` | Render either language without touching the cache |
 | `publish` | Drop the HTML cache |
 
-Every mutation accepts `rev`. A stale revision returns a conflict instead of silently overwriting a newer change.
+Every mutation accepts `rev`. A stale revision returns a conflict instead of silently overwriting a newer change. Read-only tools carry `readOnlyHint`, `delete_link` carries `destructiveHint`, and `create_link` requires exactly one of `icon` or `logo`.
 
 ### Authentication
 
@@ -179,7 +180,7 @@ The token is read from the first available source:
 | `BIO_TOKEN_FILE` | Explicit path outside `public/` |
 | `app/bio.token` | Generated on first use when `app/` is writable |
 
-There is no `.env` fallback. Empty token means the endpoint is locked.
+There is no `.env` fallback. Empty or short tokens (less than 32 URL-safe characters) lock the endpoint. The generated token is 64 lowercase hex characters.
 
 Recommended production setup:
 
@@ -307,26 +308,43 @@ Document root: **`public/`**. Never point the web server at the repository root 
 ```nginx
 root /var/www/example/public;
 index index.php;
+client_max_body_size 1m;
+
+add_header X-Content-Type-Options nosniff always;
+add_header X-Frame-Options DENY always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+add_header Strict-Transport-Security "max-age=31536000" always;
+
+location ^~ /.well-known/ {
+    try_files $uri =404;
+}
+
+location ~ /\. {
+    deny all;
+}
 
 location / {
     try_files $uri $uri/ /index.php?$query_string;
 }
 
-location = /mcp {
+location ~ ^/mcp/?$ {
     rewrite ^ /mcp.php last;
 }
 
 location ~ \.php$ {
     include fastcgi_params;
-    fastcgi_pass unix:/run/php/php8.5-fpm.sock;
+    fastcgi_pass unix:/run/php/php-fpm.sock;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     fastcgi_param HTTP_AUTHORIZATION $http_authorization;
 }
 ```
 
+Nginx does not read `.htaccess`; keep the dotfile-deny block above. Apache users can ignore it.
+
 ### Apache
 
-Point `DocumentRoot` at `public/`, enable `AllowOverride All` (or at least `FileInfo`, `Options`) and `mod_rewrite`. `public/.htaccess` handles `/mcp`, pretty URLs, directory listing, and dotfiles.
+Point `DocumentRoot` at `public/`, enable `AllowOverride All` (or at least `FileInfo`, `Options`, `AuthConfig`) and `mod_rewrite`. `public/.htaccess` handles `/mcp`, pretty URLs, directory listing, dotfiles, and forwards `Authorization` to PHP. On hosts where the header is still stripped, add `CGIPassAuth On` (Apache 2.4.13+) at the virtual-host level. A server-level `LimitRequestBody 1048576` is recommended as a second body-size guard.
 
 ### Routes
 
@@ -348,6 +366,8 @@ curl -s -o /dev/null -w '%{http_code}\n' https://your-domain.com/          # 200
 curl -s https://your-domain.com/index.php?lang=ru | grep -c 'lang="ru"'    # 1
 curl -s -o /dev/null -w '%{http_code}\n' https://your-domain.com/mcp.php   # 405
 ```
+
+Static assets are served by the web server, not PHP. The Nginx sample and `public/.htaccess` add the main hardening headers to them; keep equivalent rules if you use a different server.
 
 ### Files and permissions
 
@@ -382,26 +402,32 @@ If the token cannot be created or read, MCP answers `401` and the public site ke
 The rendered HTML cache is invalidated automatically when any of these change:
 
 - content revision;
+- `content/site.json` (content hash, including out-of-band edits);
 - content seed;
 - page template;
 - `public/styles.css` or `public/script.js`;
 - any file in `app/src/`.
 
-`publish` is only needed after an out-of-band content edit that does not bump `rev`.
+Keys use SHA-1 content hashes rather than mtimes. ETags are derived from the rendered HTML, so an out-of-band edit that is picked up by the cache key also produces a new validator. `publish` is still useful to force a clean slate, but is normally not needed after a file edit.
+
+After deploying new PHP code, reload PHP-FPM (or keep `opcache.validate_timestamps=1`); the HTML cache cannot compensate for stale opcache bytecode.
 
 ---
 
 ## Security model
 
-- Bearer token read from `MCP_TOKEN`, `BIO_TOKEN_FILE`, or `app/bio.token`; compared with `hash_equals`.
+- Bearer token read from `MCP_TOKEN`, `BIO_TOKEN_FILE`, or `app/bio.token`; must be at least 32 URL-safe characters; compared with `hash_equals`.
+- `/mcp.php` caps the body at 1 MiB and validates the token before reading it.
 - `public/` is the only document root. Source, templates, content, cache and token are outside it.
-- Whole-tree schema validation before every write; invalid content never reaches disk.
+- Whole-tree schema validation before every write; invalid content never reaches disk. Asset paths are checked against `public/assets/`, email items must match `settings.email`, and text/count/size limits apply.
 - Atomic writes (`tmp` + `rename`) under an exclusive lock; short writes are rejected.
-- Backup of the previous revision before every write; the last 20 are kept as `site-revNNN.json`.
-- Audit log at `app/content/.audit.jsonl`.
-- CSP, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` and `X-Content-Type-Options`.
+- Backup of the previous revision before every write, including the seed on the first write; the last 20 are kept as `site-revNNN.json`.
+- Audit log at `app/content/.audit.jsonl`, including the tool/action name.
+- CSP without `unsafe-inline`: inline theme bootstrap is allow-listed by SHA-256 hash, and GA4 is loaded from the external script; HSTS, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` and `X-Content-Type-Options` are also sent.
 - All user content is escaped; JSON-LD uses `JSON_HEX_TAG`; only `http(s)` and `mailto` links are accepted.
+- CSS/JS URLs carry a content-version query so a deploy does not leave browsers on stale assets.
 - Google Fonts is not loaded; Inter is self-hosted from `public/assets/fonts/`.
+- Serve the site over HTTPS. The app sends HSTS but does not redirect HTTP to HTTPS; configure that at the web server. HSTS deliberately omits `includeSubDomains` so the setting stays safe on shared domains.
 
 ### Recovery
 
@@ -435,9 +461,9 @@ GA4 sets cookies, so where consent is required this switch alone is not enough. 
 ## Testing
 
 ```bash
-php -d xdebug.mode=coverage tests/run.php   # 167 unit tests, 100% line coverage gate
-php tests/http.php                          # 14 end-to-end checks over real sockets
-npm i playwright axe-core                   # test-only, node_modules/ is gitignored
+php -d xdebug.mode=coverage tests/run.php   # 187 unit tests, 100% line coverage gate
+php tests/http.php                          # 16 end-to-end checks over real sockets (needs curl)
+npm i --no-save --no-package-lock playwright axe-core   # test-only
 npx playwright install chromium
 php -S 127.0.0.1:8123 -t public tests/router.php &
 node tests/landing.audit.js                 # 74 browser checks (Playwright + axe-core)
@@ -448,8 +474,8 @@ node tests/landing.audit.js                 # 74 browser checks (Playwright + ax
 The Playwright suite covers WCAG 2.0–2.2 AA via axe-core, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang, the clipboard fallback, and keyboard shortcuts.
 
 ```text
-Unit:        167 passed, 100.00% (979/979 lines)
-HTTP:        14 passed
+Unit:        187 passed, 100.00% (1068/1068 lines)
+HTTP:        16 passed
 Playwright:  74 passed
 ```
 
@@ -473,6 +499,6 @@ Playwright:  74 passed
 
 ## License
 
-GNU General Public License v3.0. See [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).
 
-The self-hosted Inter font is licensed under the SIL Open Font License; see `public/assets/fonts/LICENSE.txt`.
+The self-hosted Inter font is licensed under the SIL Open Font License; see `public/assets/fonts/LICENSE.txt`. Icon licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

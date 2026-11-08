@@ -20,6 +20,10 @@ Harness::test('serves the english page with cache headers', function (): void {
         assertMatches('~^W/"[0-9a-f]{40}"$~', $response->headers['ETag']);
         assertSame('DENY', $response->headers['X-Frame-Options']);
         assertContains("default-src 'self'", $response->headers['Content-Security-Policy']);
+        assertContains('sha256-', $response->headers['Content-Security-Policy']);
+        assertNotContains("script-src 'self' 'unsafe-inline'", $response->headers['Content-Security-Policy']);
+        assertNotContains('includeSubDomains', $response->headers['Strict-Transport-Security']);
+        assertNotContains("\r", \Bio\Theme::script());
         assertTrue(is_file($root . '/cache/en.html'));
     } finally {
         removeWorkspace($root);
@@ -37,6 +41,42 @@ Harness::test('answers 304 for a matching etag', function (): void {
         assertSame(304, $second->status);
         assertSame('', $second->body);
         assertSame($first->headers['ETag'], $second->headers['ETag']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('changes the etag after an out-of-band edit', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $first = (new App($root, ['mcpToken' => 'secret']))->page('/');
+        $oldEtag = $first->headers['ETag'];
+
+        $data = seedData();
+        $data['meta']['en']['title'] = 'Changed out of band';
+        writeSite($root, $data);
+
+        $second = (new App($root, ['mcpToken' => 'secret']))->page('/');
+        assertNotSame($oldEtag, $second->headers['ETag']);
+        assertContains('Changed out of band', $second->body);
+
+        $conditional = (new App($root, ['mcpToken' => 'secret']))->page('/', $oldEtag);
+        assertSame(200, $conditional->status);
+        assertContains('Changed out of band', $conditional->body);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('returns an empty body for HEAD', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $response = (new App($root, ['mcpToken' => 'secret']))->page('/', null, true);
+        assertSame(200, $response->status);
+        assertSame('', $response->body);
+        assertMatches('~^W/"[0-9a-f]{40}"$~', $response->headers['ETag']);
     } finally {
         removeWorkspace($root);
     }
@@ -151,6 +191,25 @@ Harness::test('returns 500 instead of leaking a stack trace', function (): void 
     }
 });
 
+Harness::test('cleans up partial output when the template fails', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        file_put_contents(
+            $root . '/templates/page.php',
+            '<?php echo "PARTIAL"; throw new RuntimeException("boom");'
+        );
+
+        $response = (new App($root, ['mcpToken' => 'secret']))->page('/');
+
+        assertSame(500, $response->status);
+        assertSame("Internal Server Error\n", $response->body);
+        assertNotContains('PARTIAL', $response->body);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::group('App: configuration');
 
 Harness::test('ignores a legacy .env and provisions the app token', function (): void {
@@ -182,11 +241,12 @@ Harness::test('reads the token file inside the app directory', function (): void
     try {
         putenv('MCP_TOKEN');
         putenv('BIO_TOKEN_FILE');
-        file_put_contents($tokenFile, "file-token\n");
+        $fileToken = str_repeat('f', 64);
+        file_put_contents($tokenFile, $fileToken . "\n");
 
         $app = new App($root);
 
-        assertSame(200, $app->mcp('', 'Bearer file-token')->status);
+        assertSame(200, $app->mcp('', 'Bearer ' . $fileToken)->status);
         assertSame(401, $app->mcp('', 'Bearer wrong')->status);
     } finally {
         @unlink($tokenFile);
@@ -200,13 +260,15 @@ Harness::test('the environment beats the token file', function (): void {
 
     try {
         putenv('BIO_TOKEN_FILE');
-        file_put_contents($tokenFile, 'file-token');
-        putenv('MCP_TOKEN=env-token');
+        $fileToken = str_repeat('f', 64);
+        $envToken = str_repeat('e', 64);
+        file_put_contents($tokenFile, $fileToken);
+        putenv('MCP_TOKEN=' . $envToken);
 
         $app = new App($root);
 
-        assertSame(200, $app->mcp('', 'Bearer env-token')->status);
-        assertSame(401, $app->mcp('', 'Bearer file-token')->status);
+        assertSame(200, $app->mcp('', 'Bearer ' . $envToken)->status);
+        assertSame(401, $app->mcp('', 'Bearer ' . $fileToken)->status);
     } finally {
         putenv('MCP_TOKEN');
         @unlink($tokenFile);
@@ -218,9 +280,10 @@ Harness::test('falls back to the environment variable', function (): void {
     $root = makeWorkspace();
 
     try {
-        putenv('MCP_TOKEN=from-process');
+        $envToken = str_repeat('a', 64);
+        putenv('MCP_TOKEN=' . $envToken);
         $app = new App($root);
-        assertSame(200, $app->mcp('', 'Bearer from-process')->status);
+        assertSame(200, $app->mcp('', 'Bearer ' . $envToken)->status);
     } finally {
         putenv('MCP_TOKEN');
         removeWorkspace($root);

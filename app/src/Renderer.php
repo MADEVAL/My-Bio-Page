@@ -40,10 +40,20 @@ final class Renderer
         ];
 
         $template = $this->template;
+        $level = ob_get_level();
         ob_start();
-        require $template;
 
-        return (string) ob_get_clean();
+        try {
+            require $template;
+
+            return (string) ob_get_clean();
+        } catch (\Throwable $e) {
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+
+            throw $e;
+        }
     }
 
     /** @return list<array<string, mixed>> */

@@ -22,6 +22,8 @@ $matrix = [
     ['siteUrl is empty', ['settings', 'siteUrl'], ''],
     ['siteUrl is not https', ['settings', 'siteUrl'], 'http://bio.leonidov.dev'],
     ['siteUrl is malformed', ['settings', 'siteUrl'], 'https://not a url'],
+    ['siteUrl has a query', ['settings', 'siteUrl'], 'https://bio.leonidov.dev/?x=1'],
+    ['siteUrl has a fragment', ['settings', 'siteUrl'], 'https://bio.leonidov.dev/#top'],
     ['email is invalid', ['settings', 'email'], 'nope'],
     ['personUrl is invalid', ['settings', 'personUrl'], 'javascript:alert(1)'],
     ['photo is unsafe', ['settings', 'photo'], 'javascript:alert(1)'],
@@ -36,6 +38,7 @@ $matrix = [
     ['worksFor has an invalid url', ['settings', 'worksFor'], ['name' => 'X', 'url' => 'nope']],
     ['meta.en is missing', ['meta', 'en'], null],
     ['meta.en.title is empty', ['meta', 'en', 'title'], ''],
+    ['meta.en.title is too long', ['meta', 'en', 'title'], str_repeat('a', 2001)],
     ['profile.en is missing', ['profile', 'en'], null],
     ['profile.ru.name is empty', ['profile', 'ru', 'name'], ''],
     ['ui.en is missing', ['ui', 'en'], null],
@@ -56,12 +59,15 @@ $matrix = [
     ['item type is unknown', ['sections', 0, 'items', 0, 'type'], 'button'],
     ['item href uses a bad scheme', ['sections', 0, 'items', 0, 'href'], 'ftp://example.com'],
     ['item href is not a string', ['sections', 0, 'items', 0, 'href'], 42],
+    ['item href is too long', ['sections', 0, 'items', 0, 'href'], 'https://example.com/' . str_repeat('a', 2050)],
     ['email item href is not mailto', ['sections', 4, 'items', 0, 'href'], 'https://example.com'],
+    ['email item href does not match settings.email', ['sections', 4, 'items', 0, 'href'], 'mailto:other@example.com'],
     ['item icon is unknown', ['sections', 0, 'items', 0, 'icon'], 'chrome'],
     ['item logo escapes assets/', ['sections', 0, 'items', 0, 'logo'], '../../etc/passwd'],
     ['item order is zero', ['sections', 0, 'items', 0, 'order'], 0],
     ['item visible is not a boolean', ['sections', 0, 'items', 0, 'visible'], 1],
     ['item title is empty', ['sections', 0, 'items', 0, 'title', 'en'], ''],
+    ['item title is too long', ['sections', 0, 'items', 0, 'title', 'en'], str_repeat('a', 2001)],
     ['item subtitle is not an object', ['sections', 0, 'items', 0, 'subtitle'], 'x'],
     ['ga4 is not a measurement ID', ['settings', 'ga4'], 'UA-123456'],
     ['ga4 is too short', ['settings', 'ga4'], 'G-ABCDE'],
@@ -90,6 +96,99 @@ Harness::test('rejects: duplicate item ids across the tree', function (): void {
     $data = seedData();
     $data['sections'][1]['items'][0]['id'] = 'telegram';
     assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'duplicate item id');
+});
+
+Harness::test('rejects: more than one email item', function (): void {
+    $data = seedData();
+    $email = $data['sections'][4]['items'][0];
+    $email['id'] = 'email2';
+    $email['order'] = 2;
+    $data['sections'][4]['items'][] = $email;
+    assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'more than one email item');
+});
+
+Harness::test('rejects: too many sections', function (): void {
+    $data = seedData();
+    $section = $data['sections'][0];
+    $section['items'] = [];
+    $sections = [];
+
+    for ($i = 1; $i <= 51; $i++) {
+        $section['id'] = 'section-' . $i;
+        $sections[] = $section;
+    }
+
+    $data['sections'] = $sections;
+    assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'more than 50 sections');
+});
+
+Harness::test('rejects: too many items', function (): void {
+    $data = seedData();
+    $base = $data['sections'][0]['items'][0];
+    $items = [];
+
+    for ($i = 1; $i <= 501; $i++) {
+        $item = $base;
+        $item['id'] = 'item-' . $i;
+        $items[] = $item;
+    }
+
+    $data['sections'][0]['items'] = $items;
+    assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), 'more than 500 items');
+});
+
+Harness::test('rejects: content over the byte limit', function (): void {
+    $data = seedData();
+    $base = $data['sections'][0]['items'][0];
+    $long = str_repeat('a', 2000);
+    $items = [];
+
+    for ($i = 1; $i <= 300; $i++) {
+        $item = $base;
+        $item['id'] = 'long-' . $i;
+        $item['title'] = ['en' => $long, 'ru' => $long];
+        $item['subtitle'] = ['en' => $long, 'ru' => $long];
+        $items[] = $item;
+    }
+
+    $data['sections'][0]['items'] = $items;
+    assertThrows(InvalidArgumentException::class, static fn (): array => validator()->validate($data), '1 MiB');
+});
+
+Harness::test('rejects: a missing logo file', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+        $data['sections'][1]['items'][0]['logo'] = 'assets/nope.png';
+        assertThrows(InvalidArgumentException::class, static fn (): array => makeContent($root)->validate($data), 'existing asset');
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('rejects: a missing photo file', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+        $data['settings']['photo'] = 'assets/nope.jpg';
+        assertThrows(InvalidArgumentException::class, static fn (): array => makeContent($root)->validate($data), 'existing asset');
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('rejects: an OG image with the wrong dimensions', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+        $data['settings']['ogImage'] = 'assets/photo.jpg';
+        assertThrows(InvalidArgumentException::class, static fn (): array => makeContent($root)->validate($data), '1200x630');
+    } finally {
+        removeWorkspace($root);
+    }
 });
 
 Harness::test('accepts: null labels and empty subtitles', function (): void {
@@ -181,9 +280,12 @@ Harness::test('mutate bumps the revision, writes a backup and an audit line', fu
         assertSame(2020, $next['settings']['footerStart']);
         assertContains('"rev": 3', (string) file_get_contents($root . '/content/site.json'));
         assertContains('"actor":"test-actor"', (string) file_get_contents($root . '/content/.audit.jsonl'));
+        assertContains('"action":"mutate"', (string) file_get_contents($root . '/content/.audit.jsonl'));
 
         $backups = glob($root . '/content/backups/site-*.json') ?: [];
-        assertCount(1, $backups);
+        assertCount(2, $backups);
+        assertTrue(is_file($root . '/content/backups/site-rev001.json'));
+        assertTrue(is_file($root . '/content/backups/site-rev002.json'));
         assertSame(3, $content->load()['rev']);
     } finally {
         removeWorkspace($root);
@@ -230,7 +332,10 @@ Harness::test('prunes old backups', function (): void {
     try {
         $content = makeContent($root);
         $content->mutate('t', null, static fn (array $d): array => $d);
-        mkdir($root . '/content/backups', 0775, true);
+
+        if (!is_dir($root . '/content/backups')) {
+            mkdir($root . '/content/backups', 0775, true);
+        }
 
         for ($i = 1; $i <= 25; $i++) {
             file_put_contents(sprintf('%s/content/backups/site-20200101-0000%02d-rev%03d.json', $root, $i, $i), '{}');

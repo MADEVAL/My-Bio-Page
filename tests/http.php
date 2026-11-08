@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 const HOST = '127.0.0.1';
 const PORT = 8131;
-const TOKEN = 'integration-token';
+const TOKEN = 'integration-token-0123456789abcdef';
 
 require __DIR__ . '/lib/harness.php';
 require __DIR__ . '/lib/workspace.php';
@@ -173,6 +173,16 @@ try {
         assertContains('Yevhen Leonidov', $response['body']);
         assertContains('public, max-age=60', $response['headers']['cache-control']);
         assertTrue(isset($response['headers']['etag']));
+        assertContains('sha256-', $response['headers']['content-security-policy']);
+        assertNotContains("'unsafe-inline'", $response['headers']['content-security-policy']);
+    });
+
+    Harness::test('HEAD / returns headers without a body', function (): void {
+        $response = request('HEAD', '/');
+
+        assertSame(200, $response['status']);
+        assertSame('', $response['body']);
+        assertTrue(isset($response['headers']['etag']));
     });
 
     Harness::test('ETag produces a 304', function (): void {
@@ -290,6 +300,15 @@ try {
         ], '{}');
 
         assertSame(401, $response['status']);
+    });
+
+    Harness::test('MCP rejects oversized bodies over HTTP', function (): void {
+        $response = request('POST', '/mcp', [
+            'Authorization' => 'Bearer ' . TOKEN,
+            'Content-Type' => 'application/json',
+        ], str_repeat('a', 1048577));
+
+        assertSame(413, $response['status']);
     });
 } finally {
     proc_terminate($server);

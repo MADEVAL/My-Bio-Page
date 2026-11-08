@@ -88,17 +88,6 @@ Harness::test('returns null for an empty cache file', function (): void {
     }
 });
 
-Harness::test('throws when the temporary cache file cannot be created', function (): void {
-    $dir = sys_get_temp_dir() . '/bio-cache-' . bin2hex(random_bytes(4));
-
-    try {
-        mkdir($dir . '/en.html.tmp', 0775, true);
-        assertThrows(RuntimeException::class, static fn (): mixed => (new Cache($dir, 'key'))->put('en', 'x'), 'cache file');
-    } finally {
-        removeWorkspace($dir);
-    }
-});
-
 Harness::test('flushes every artefact', function (): void {
     $dir = sys_get_temp_dir() . '/bio-cache-' . bin2hex(random_bytes(4));
 
@@ -115,16 +104,7 @@ Harness::test('flushes every artefact', function (): void {
     }
 });
 
-Harness::test('etag is weak and derived from the key', function (): void {
-    $a = (new Cache('/tmp', 'one'))->etag();
-    $b = (new Cache('/tmp', 'two'))->etag();
-
-    assertMatches('~^W/"[0-9a-f]{40}"$~', $a);
-    assertNotSame($a, $b);
-    assertNotSame($a, (new Cache('/tmp', 'one'))->etag('ru'));
-});
-
-Harness::test('key follows the revision and asset mtimes', function (): void {
+Harness::test('key follows the revision and file contents', function (): void {
     $root = makeWorkspace();
 
     try {
@@ -135,7 +115,7 @@ Harness::test('key follows the revision and asset mtimes', function (): void {
         );
 
         $before = Cache::keyFor(['rev' => 1], [$file, '/nope/missing.css']);
-        touch($file, time() + 30);
+        file_put_contents($file, '/* changed fixture */');
         clearstatcache();
         $after = Cache::keyFor(['rev' => 1], [$file, '/nope/missing.css']);
 

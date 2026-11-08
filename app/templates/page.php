@@ -5,15 +5,18 @@
 
 use Bio\Icons;
 use Bio\Renderer;
+use Bio\Theme;
 
 $lang = $v['lang'];
 $seo = $v['seo'];
 $ui = $v['ui'];
 $profile = $v['profile'];
 $settings = $v['settings'];
+$assetVersion = substr((string) @sha1_file(dirname(__DIR__, 2) . '/public/styles.css'), 0, 12)
+    . '-' . substr((string) @sha1_file(dirname(__DIR__, 2) . '/public/script.js'), 0, 12);
 ?>
 <!DOCTYPE html>
-<html lang="<?= e($lang) ?>" data-theme="dark" data-theme-default="<?= e($settings['themeDefault']) ?>">
+<html lang="<?= e($lang) ?>" data-theme="dark" data-theme-default="<?= e($settings['themeDefault']) ?>" data-ga4="<?= e($settings['ga4']) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -52,27 +55,13 @@ $settings = $v['settings'];
     <meta name="color-scheme" content="dark light">
 
     <!-- Theme bootstrap: runs before CSS paints to avoid a flash of the wrong theme -->
-    <script>
-        (function () {
-            var theme;
-            try { theme = localStorage.getItem('linkbio-theme'); } catch (e) { /* storage blocked */ }
-            if (theme !== 'light' && theme !== 'dark') {
-                var fallback = document.documentElement.getAttribute('data-theme-default') || 'system';
-                theme = fallback === 'system'
-                    ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
-                    : fallback;
-            }
-            document.documentElement.setAttribute('data-theme', theme);
-            var meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0a0b' : '#fafafa');
-        })();
-    </script>
+    <script><?= Theme::script() ?></script>
 
     <!-- Icons & Fonts -->
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="<?= e(asset($settings['photo'])) ?>">
     <link rel="preload" as="image" href="<?= e(asset($settings['photo'])) ?>" fetchpriority="high">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=<?= e($assetVersion) ?>">
 
     <!-- Structured data -->
     <script type="application/ld+json">
@@ -82,13 +71,6 @@ $settings = $v['settings'];
 
     <!-- Google Analytics 4 -->
     <link rel="preconnect" href="https://www.googletagmanager.com">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($settings['ga4']) ?>"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', <?= json_encode($settings['ga4'], JSON_UNESCAPED_SLASHES) ?>);
-    </script>
 <?php endif; ?>
 </head>
 <body>
@@ -153,6 +135,6 @@ $settings = $v['settings'];
     <div class="toast-container" id="toastContainer" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <script type="application/json" id="i18n"><?= $v['i18n'] ?></script>
-    <script src="/script.js"></script>
+    <script src="/script.js?v=<?= e($assetVersion) ?>"></script>
 </body>
 </html>

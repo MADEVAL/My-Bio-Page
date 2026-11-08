@@ -35,6 +35,8 @@ Harness::test('renders the english page', function (): void {
         assertContains('id="copyEmail"', $html);
         assertContains('id="i18n"', $html);
         assertContains('hreflang="ru"', $html);
+        assertContains('/styles.css?v=', $html);
+        assertContains('/script.js?v=', $html);
         assertSame(15, anchors($html));
         assertSame(6, substr_count($html, 'class="social-btn"'));
         assertSame(8, substr_count($html, 'class="link-card'));
@@ -218,15 +220,16 @@ Harness::test('injects GA4 only when a measurement ID is set', function (): void
         $off = rendererFor($root)->render('en');
 
         assertNotContains('googletagmanager.com', $off);
-        assertNotContains('gtag(', $off);
+        assertContains('data-ga4=""', $off);
 
         $data = seedData();
         $data['settings']['ga4'] = 'G-ABCD123456';
         $on = rendererFor($root, $data)->render('en');
 
-        assertContains('https://www.googletagmanager.com/gtag/js?id=G-ABCD123456', $on);
+        assertContains('data-ga4="G-ABCD123456"', $on);
         assertContains('rel="preconnect" href="https://www.googletagmanager.com"', $on);
-        assertContains('gtag(\'config\', "G-ABCD123456")', $on);
+        assertNotContains('gtag(', $on);
+        assertNotContains('googletagmanager.com/gtag/js', $on);
     } finally {
         removeWorkspace($root);
     }
