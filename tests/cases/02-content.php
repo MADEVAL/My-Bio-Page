@@ -56,6 +56,8 @@ $matrix = [
     ['item visible is not a boolean', ['sections', 0, 'items', 0, 'visible'], 1],
     ['item title is empty', ['sections', 0, 'items', 0, 'title', 'en'], ''],
     ['item subtitle is not an object', ['sections', 0, 'items', 0, 'subtitle'], 'x'],
+    ['ga4 is not a measurement ID', ['settings', 'ga4'], 'UA-123456'],
+    ['ga4 is not a string', ['settings', 'ga4'], 123],
 ];
 
 foreach ($matrix as [$label, $path, $value]) {
@@ -80,6 +82,11 @@ Harness::test('accepts: null labels and empty subtitles', function (): void {
     $data = seedData();
     $data['sections'][0]['label'] = ['en' => null, 'ru' => null];
     $data['sections'][0]['items'][1]['subtitle'] = ['en' => '', 'ru' => ''];
+    assertSame($data, validator()->validate($data));
+});
+
+Harness::test('accepts: a GA4 measurement ID', function (): void {
+    $data = withPath(seedData(), ['settings', 'ga4'], 'G-ABCD123456');
     assertSame($data, validator()->validate($data));
 });
 

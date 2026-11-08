@@ -139,6 +139,12 @@ final class Content
         if (!is_array($worksFor) || !is_string($worksFor['name'] ?? null) || !is_string($worksFor['url'] ?? null)) {
             $this->fail('settings.worksFor', 'must contain name and url');
         }
+
+        $ga4 = $settings['ga4'] ?? '';
+
+        if (!is_string($ga4) || ($ga4 !== '' && preg_match('~^G-[A-Z0-9]{6,20}$~', $ga4) !== 1)) {
+            $this->fail('settings.ga4', 'must be empty or a GA4 measurement ID like G-XXXXXXXXXX');
+        }
     }
 
     private function validateLanguages(array $data): void
@@ -309,6 +315,8 @@ final class Content
 
     private function normalize(array $data): array
     {
+        $data['settings']['ga4'] ??= '';
+
         usort($data['sections'], static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
 
         foreach ($data['sections'] as $sIndex => $section) {

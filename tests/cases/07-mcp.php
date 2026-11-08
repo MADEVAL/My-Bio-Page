@@ -516,6 +516,27 @@ Harness::test('rejects invalid settings', function (): void {
     }
 });
 
+Harness::test('toggles GA4 through settings', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+
+        $result = callTool($app, 'update_settings', ['ga4' => 'G-ABCD123456']);
+        assertFalse($result['isError'], $result['text']);
+        assertSame(['ga4' => 'G-ABCD123456'], $result['data']['applied']);
+
+        $html = callTool($app, 'preview')['data']['html'];
+        assertContains('G-ABCD123456', $html);
+
+        $bad = callTool($app, 'update_settings', ['ga4' => 'UA-1234']);
+        assertTrue($bad['isError']);
+        assertContains('settings.ga4', $bad['text']);
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::test('surfaces revision conflicts', function (): void {
     $root = makeWorkspace();
 

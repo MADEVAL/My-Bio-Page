@@ -53,7 +53,7 @@ app/
 ├── assets/                # photo, logos, OG image, favicon
 ├── styles.css             # design tokens, dark/light
 └── script.js              # theme, clipboard, shortcuts
-tests/                     # 143 unit, 14 HTTP, 74 Playwright checks
+tests/                     # 148 unit, 14 HTTP, 74 Playwright checks
 bio.token                  # MCP token, lives next to app/, never inside it
 ```
 
@@ -137,7 +137,7 @@ curl -s https://bio.leonidov.dev/mcp.php \
 | `move_link` | move between sections or positions |
 | `set_visibility` | hide without deleting |
 | `delete_link` | soft delete (hide) or `hard: true` |
-| `update_settings` | email, themeDefault, footerStart |
+| `update_settings` | email, themeDefault, footerStart, ga4 |
 | `preview` | render either language without touching the cache |
 | `publish` | drop the HTML cache |
 
@@ -297,7 +297,7 @@ rm -f cache/*.html cache/*.key
 ## Tests
 
 ```bash
-php -d xdebug.mode=coverage tests/run.php   # 143 unit tests, 100% line coverage gate
+php -d xdebug.mode=coverage tests/run.php   # 148 unit tests, 100% line coverage gate
 php tests/http.php                          # 14 end-to-end checks over real sockets
 node tests/landing.audit.js                 # 74 browser checks (Playwright + axe-core)
 ```
@@ -307,7 +307,7 @@ node tests/landing.audit.js                 # 74 browser checks (Playwright + ax
 The Playwright suite also covers WCAG 2.0-2.2 AA via axe-core, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang and the clipboard fallback.
 
 ```
-Unit:        143 passed, 100.00% (832/832 lines)
+Unit:        148 passed, 100.00% (838/838 lines)
 HTTP:        14 passed
 Playwright:  74 passed
 ```
@@ -330,6 +330,26 @@ Playwright:  74 passed
 ```
 
 Item types: `link`, `featured`, `project`, `social`, `email`. Section layouts: `cards`, `social`, `mixed`. Icons come from a fixed registry (inline SVG); a link can use `logo` instead of `icon` for a raster brand mark.
+
+---
+
+## Analytics
+
+GA4 is off until you give it a measurement ID. An empty string means no tag at all - not a single request to `googletagmanager.com`.
+
+```json
+"settings": { "ga4": "G-XXXXXXXXXX" }
+```
+
+Only then does the page emit the gtag snippet in `<head>`, with a preconnect. Switch it at runtime through MCP:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"update_settings","arguments":{"ga4":"G-XXXXXXXXXX"}}}
+```
+
+and back off with `"ga4": ""`. A `UA-` property is rejected by validation instead of silently doing nothing.
+
+One caveat: the tag is either on for every visitor or off for everyone. GA4 sets cookies, so where consent is required this alone is not enough - the page ships no banner.
 
 ---
 

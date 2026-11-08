@@ -324,7 +324,7 @@ final class Mcp
     private function updateSettings(array $args): array
     {
         $patch = is_array($args['settings'] ?? null) ? $args['settings'] : $args;
-        $allowed = ['email', 'themeDefault', 'footerStart'];
+        $allowed = ['email', 'themeDefault', 'footerStart', 'ga4'];
         $applied = [];
 
         $data = $this->content->mutate('mcp', $this->rev($args), function (array $d) use ($patch, $allowed, &$applied): array {
@@ -574,13 +574,14 @@ final class Mcp
             ],
             [
                 'name' => 'update_settings',
-                'description' => 'Update email, themeDefault or footerStart.',
+                'description' => 'Update email, themeDefault, footerStart or the GA4 measurement ID.',
                 'inputSchema' => [
                     'type' => 'object',
                     'properties' => [
                         'email' => ['type' => 'string'],
                         'themeDefault' => ['type' => 'string', 'enum' => Content::THEMES],
                         'footerStart' => ['type' => 'integer'],
+                        'ga4' => ['type' => 'string', 'description' => 'GA4 measurement ID like G-XXXXXXXXXX; empty string disables analytics'],
                         'rev' => $rev,
                     ],
                 ],
@@ -617,6 +618,7 @@ final class Mcp
                         'email' => ['type' => 'string', 'format' => 'email'],
                         'themeDefault' => ['type' => 'string', 'enum' => Content::THEMES],
                         'footerStart' => ['type' => 'integer'],
+                        'ga4' => ['type' => 'string', 'description' => 'GA4 measurement ID like G-XXXXXXXXXX, empty disables analytics'],
                         'photo' => ['type' => 'string'],
                         'ogImage' => ['type' => 'string'],
                         'personUrl' => ['type' => 'string'],

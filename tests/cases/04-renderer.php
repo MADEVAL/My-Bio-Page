@@ -173,3 +173,24 @@ Harness::test('email block carries the address to copy', function (): void {
         removeWorkspace($root);
     }
 });
+
+Harness::test('injects GA4 only when a measurement ID is set', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $off = rendererFor($root)->render('en');
+
+        assertNotContains('googletagmanager.com', $off);
+        assertNotContains('gtag(', $off);
+
+        $data = seedData();
+        $data['settings']['ga4'] = 'G-ABCD123456';
+        $on = rendererFor($root, $data)->render('en');
+
+        assertContains('https://www.googletagmanager.com/gtag/js?id=G-ABCD123456', $on);
+        assertContains('rel="preconnect" href="https://www.googletagmanager.com"', $on);
+        assertContains('gtag(\'config\', "G-ABCD123456")', $on);
+    } finally {
+        removeWorkspace($root);
+    }
+});

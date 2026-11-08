@@ -81,6 +81,18 @@ $settings = $v['settings'];
     <script type="application/ld+json">
 <?= $seo['jsonld'] ?>
     </script>
+<?php if ($settings['ga4'] !== ''): ?>
+
+    <!-- Google Analytics 4 -->
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($settings['ga4']) ?>"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', <?= json_encode($settings['ga4'], JSON_UNESCAPED_SLASHES) ?>);
+    </script>
+<?php endif; ?>
 </head>
 <body>
     <!-- Controls -->
