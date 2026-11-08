@@ -4,18 +4,38 @@
  * Updated 2026 - SEO-friendly two-page approach (EN/RU)
  */
 
-(function() {
+(function () {
     'use strict';
 
     // ==========================================
     // Configuration
     // ==========================================
     const CONFIG = {
-        storageKeys: {
-            theme: 'linkbio-theme'
-        },
-        defaultTheme: 'dark'
+        storageKey: 'linkbio-theme',
+        themeColors: {
+            dark: '#0a0a0b',
+            light: '#fafafa'
+        }
     };
+
+    const IS_RU = document.documentElement.lang === 'ru';
+
+    const I18N = {
+        en: {
+            themeToLight: 'Switch to light theme',
+            themeToDark: 'Switch to dark theme',
+            copied: 'Email copied!',
+            copyFailed: 'Could not copy. Email: leonidovev@gmail.com'
+        },
+        ru: {
+            themeToLight: 'Включить светлую тему',
+            themeToDark: 'Включить тёмную тему',
+            copied: 'Email скопирован!',
+            copyFailed: 'Не удалось скопировать. Email: leonidovev@gmail.com'
+        }
+    };
+
+    const t = IS_RU ? I18N.ru : I18N.en;
 
     // ==========================================
     // Safe localStorage wrapper
@@ -44,10 +64,12 @@
         show(message) {
             const container = document.getElementById('toastContainer');
             if (!container) return;
+
             const toast = document.createElement('div');
             toast.className = 'toast';
             toast.textContent = message;
             container.appendChild(toast);
+
             toast.addEventListener('animationend', (e) => {
                 if (e.animationName === 'toastOut') toast.remove();
             });
@@ -59,35 +81,29 @@
     // ==========================================
     const ThemeController = {
         init() {
-            this.themeBtn = document.getElementById('themeToggle');
-            this.icon = this.themeBtn.querySelector('i');
-            
-            const savedTheme = Storage.get(CONFIG.storageKeys.theme) || CONFIG.defaultTheme;
-            this.setTheme(savedTheme, false);
-            
-            this.themeBtn.addEventListener('click', () => this.toggle());
+            this.btn = document.getElementById('themeToggle');
+            if (!this.btn) return;
+
+            this.meta = document.querySelector('meta[name="theme-color"]');
+
+            // The theme attribute is already set by the inline <head> script
+            const initial = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+            this.apply(initial, false);
+
+            this.btn.addEventListener('click', () => this.toggle());
         },
 
-        setTheme(theme, animate = true) {
+        apply(theme, persist = true) {
             document.documentElement.setAttribute('data-theme', theme);
-            Storage.set(CONFIG.storageKeys.theme, theme);
-            
-            this.icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            if (persist) Storage.set(CONFIG.storageKey, theme);
 
-            const metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
-            const metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
-            if (metaDark) metaDark.content = theme === 'dark' ? '#0a0a0b' : '#fafafa';
-            if (metaLight) metaLight.content = theme === 'light' ? '#fafafa' : '#0a0a0b';
-
-            if (animate) {
-                this.themeBtn.style.transform = 'scale(0.9)';
-                setTimeout(() => { this.themeBtn.style.transform = ''; }, 150);
-            }
+            if (this.meta) this.meta.setAttribute('content', CONFIG.themeColors[theme]);
+            this.btn.setAttribute('aria-label', theme === 'dark' ? t.themeToLight : t.themeToDark);
         },
 
         toggle() {
             const current = document.documentElement.getAttribute('data-theme');
-            this.setTheme(current === 'dark' ? 'light' : 'dark');
+            this.apply(current === 'dark' ? 'light' : 'dark');
         }
     };
 
@@ -99,63 +115,70 @@
             const copyBtn = document.getElementById('copyEmail');
             if (!copyBtn) return;
 
-            copyBtn.addEventListener('click', () => {
+            copyBtn.addEventListener('click', async () => {
                 const email = copyBtn.dataset.email;
-                const isRu = document.documentElement.lang === 'ru';
-                
+                const copied = await this.copy(email);
+                Toast.show(copied ? t.copied : t.copyFailed);
+            });
+        },
+
+        async copy(text) {
+            // Modern path
+            try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(email).then(() => {
-                        Toast.show(isRu ? 'Email скопирован!' : 'Email copied!');
-                    });
+                    await navigator.clipboard.writeText(text);
+                    return true;
                 }
-            });
+            } catch {
+                // Permission denied or insecure context - fall through
+            }
+
+            // Legacy fallback
+            try {
+                const field = document.createElement('textarea');
+                field.value = text;
+                field.setAttribute('readonly', '');
+                field.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+                document.body.appendChild(field);
+                field.select();
+                const ok = document.execCommand('copy');
+                field.remove();
+                return ok;
+            } catch {
+                return false;
+            }
         }
     };
 
     // ==========================================
-    // Link Analytics
-    // ==========================================
-    const Analytics = {
-        init() {
-            const links = document.querySelectorAll('.link-card, .social-btn');
-            links.forEach(link => {
-                link.addEventListener('click', () => {
-                    const href = link.getAttribute('href');
-                    const title = link.querySelector('.link-title')?.textContent || 
-                                  link.getAttribute('aria-label') || 
-                                  'Unknown';
-                    console.log(`[LinkBio] Clicked: ${title} -> ${href}`);
-                });
-            });
-        }
-    };
-
-    // ==========================================
-    // Keyboard Navigation
+    // Keyboard Shortcuts
     // ==========================================
     const KeyboardNav = {
         init() {
             document.addEventListener('keydown', (e) => {
-                if (this.isInteractiveFocused()) return;
+                if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+                if (this.isEditable()) return;
 
-                if (e.key === 't' || e.key === 'T') {
+                const key = e.key.toLowerCase();
+
+                if (key === 't') {
                     ThemeController.toggle();
                 }
-                if (e.key === 'l' || e.key === 'L') {
-                    // Navigate to the other language page
+
+                if (key === 'l') {
                     const langLink = document.getElementById('langToggle');
                     if (langLink) langLink.click();
                 }
             });
         },
 
-        isInteractiveFocused() {
+        isEditable() {
             const el = document.activeElement;
-            return el.tagName === 'INPUT' || 
-                   el.tagName === 'TEXTAREA' || 
-                   el.tagName === 'A' ||
-                   el.tagName === 'BUTTON' ||
-                   el.isContentEditable;
+            if (!el) return false;
+            return el.isContentEditable ||
+                el.tagName === 'INPUT' ||
+                el.tagName === 'TEXTAREA' ||
+                el.tagName === 'SELECT';
         }
     };
 
@@ -164,46 +187,42 @@
     // ==========================================
     const RippleEffect = {
         init() {
-            if (!document.getElementById('ripple-style')) {
-                const style = document.createElement('style');
-                style.id = 'ripple-style';
-                style.textContent = `
-                    @keyframes ripple {
-                        to { transform: scale(4); opacity: 0; }
-                    }
-                `;
-                document.head.appendChild(style);
-            }
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-            const cards = document.querySelectorAll('.link-card');
-            cards.forEach(card => {
-                card.addEventListener('click', (e) => this.create(e, card));
+            document.querySelectorAll('.link-card').forEach((card) => {
+                card.addEventListener('click', (e) => {
+                    // detail === 0 means keyboard activation
+                    if (e.detail === 0) return;
+                    // Don't animate modified clicks (new tab / download)
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    this.create(e, card);
+                });
             });
         },
 
         create(e, element) {
-            const ripple = document.createElement('span');
             const rect = element.getBoundingClientRect();
             const size = Math.max(rect.width, rect.height);
-            const x = e.clientX - rect.left - size / 2;
-            const y = e.clientY - rect.top - size / 2;
 
-            ripple.style.cssText = `
-                position: absolute;
-                width: ${size}px;
-                height: ${size}px;
-                left: ${x}px;
-                top: ${y}px;
-                background: currentColor;
-                opacity: 0.1;
-                border-radius: 50%;
-                transform: scale(0);
-                animation: ripple 0.6s ease-out;
-                pointer-events: none;
-            `;
+            const ripple = document.createElement('span');
+            ripple.className = 'ripple';
+            ripple.style.width = size + 'px';
+            ripple.style.height = size + 'px';
+            ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+            ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
 
             element.appendChild(ripple);
-            ripple.addEventListener('animationend', () => ripple.remove());
+            ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
+        }
+    };
+
+    // ==========================================
+    // Footer Year
+    // ==========================================
+    const Footer = {
+        init() {
+            const year = document.getElementById('currentYear');
+            if (year) year.textContent = new Date().getFullYear();
         }
     };
 
@@ -213,12 +232,9 @@
     function init() {
         ThemeController.init();
         EmailCopy.init();
-        Analytics.init();
         KeyboardNav.init();
         RippleEffect.init();
-
-        console.log('[LinkBio] Initialized successfully');
-        console.log('[LinkBio] Keyboard shortcuts: T = Toggle theme, L = Switch language');
+        Footer.init();
     }
 
     if (document.readyState === 'loading') {

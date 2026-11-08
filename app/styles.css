@@ -1,9 +1,13 @@
 /* ==========================================
-   CSS Variables & Themes
+   Design Tokens
    ========================================== */
 :root {
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    
+
+    /* Layout */
+    --container-max: 480px;
+    --control-size: 44px;
+
     /* Spacing */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -11,61 +15,83 @@
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
-    
+
     /* Border Radius */
     --radius-sm: 8px;
     --radius-md: 12px;
-    --radius-lg: 16px;
     --radius-full: 50%;
-    
+
     /* Transitions */
     --transition-fast: 0.15s ease;
     --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
+
+    /* Icons */
+    --icon-size: 22px;
+    --icon-size-sm: 18px;
+
+    /* Brand gradient (same in both themes) */
+    --violet: #7c3aed;
+    --gradient-brand: linear-gradient(135deg, #2563eb, var(--violet));
+
+    --z-controls: 100;
+    --z-toast: 1000;
 }
 
-/* Dark Theme (Default) */
+/* Dark Theme */
 [data-theme="dark"] {
+    color-scheme: dark;
+
     --bg-primary: #0a0a0b;
     --bg-secondary: #111113;
     --bg-card: #18181b;
     --bg-card-hover: #1f1f23;
-    --bg-accent: #2563eb;
-    --bg-accent-hover: #3b82f6;
-    
+
+    /* --accent-fill is for surfaces, --accent-text for text/borders (AA-safe) */
+    --accent-fill: #2563eb;
+    --accent-fill-hover: #3b82f6;
+    --accent-text: #4f8ff7;
+    --on-accent: #ffffff;
+
     --text-primary: #fafafa;
     --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
-    
+    --text-muted: #9a9aa3;
+
     --border-color: #27272a;
     --border-accent: #3f3f46;
-    
+
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 40px rgba(37, 99, 235, 0.15);
+    --shadow-featured: 0 8px 32px rgba(37, 99, 235, 0.3);
 }
 
 /* Light Theme */
 [data-theme="light"] {
+    color-scheme: light;
+
     --bg-primary: #fafafa;
     --bg-secondary: #f4f4f5;
     --bg-card: #ffffff;
     --bg-card-hover: #f4f4f5;
-    --bg-accent: #2563eb;
-    --bg-accent-hover: #1d4ed8;
-    
+
+    --accent-fill: #2563eb;
+    --accent-fill-hover: #1d4ed8;
+    --accent-text: #2563eb;
+    --on-accent: #ffffff;
+
     --text-primary: #18181b;
     --text-secondary: #52525b;
-    --text-muted: #a1a1aa;
-    
+    --text-muted: #6b6b74;
+
     --border-color: #e4e4e7;
     --border-accent: #d4d4d8;
-    
+
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
     --shadow-glow: 0 0 40px rgba(37, 99, 235, 0.08);
+    --shadow-featured: 0 8px 32px rgba(37, 99, 235, 0.25);
 }
 
 /* ==========================================
@@ -80,7 +106,6 @@
 html {
     font-size: 16px;
     scroll-behavior: smooth;
-    color-scheme: dark light;
 }
 
 body {
@@ -89,6 +114,7 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    min-height: 100dvh;
     transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
@@ -102,6 +128,24 @@ button {
     background: none;
     cursor: pointer;
     font-family: inherit;
+    color: inherit;
+}
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 /* ==========================================
@@ -110,15 +154,16 @@ button {
 .controls {
     position: fixed;
     top: var(--spacing-lg);
-    right: var(--spacing-lg);
+    /* Stays aligned with the card column on wide screens */
+    right: max(var(--spacing-md), calc((100% - var(--container-max)) / 2 + var(--spacing-md)));
     display: flex;
     gap: var(--spacing-sm);
-    z-index: 100;
+    z-index: var(--z-controls);
 }
 
 .control-btn {
-    width: 44px;
-    height: 44px;
+    width: var(--control-size);
+    height: var(--control-size);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,8 +173,11 @@ button {
     color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 500;
-    transition: all var(--transition-fast);
-    backdrop-filter: blur(8px);
+    transition: background-color var(--transition-fast),
+                color var(--transition-fast),
+                border-color var(--transition-fast),
+                box-shadow var(--transition-fast),
+                transform var(--transition-fast);
 }
 
 .control-btn:hover {
@@ -139,8 +187,8 @@ button {
     box-shadow: var(--shadow-md);
 }
 
-.control-btn i {
-    font-size: 1rem;
+.control-btn:active {
+    transform: translateY(0);
 }
 
 .lang-text {
@@ -149,15 +197,52 @@ button {
     letter-spacing: 0.5px;
 }
 
+/* Sun in dark theme, moon in light theme */
+.icon-moon {
+    display: none;
+}
+
+[data-theme="light"] .icon-sun {
+    display: none;
+}
+
+[data-theme="light"] .icon-moon {
+    display: block;
+}
+
+/* ==========================================
+   Icons
+   ========================================== */
+.icon-brand {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    fill: currentColor;
+}
+
+.icon-ui {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.control-btn .icon-ui {
+    width: 18px;
+    height: 18px;
+}
+
 /* ==========================================
    Container
    ========================================== */
 .container {
     width: 100%;
-    max-width: 480px;
+    max-width: var(--container-max);
     margin: 0 auto;
     padding: var(--spacing-xl) var(--spacing-md);
-    padding-top: calc(var(--spacing-2xl) + 44px);
+    padding-top: calc(var(--spacing-2xl) + var(--control-size));
 }
 
 /* ==========================================
@@ -172,8 +257,7 @@ button {
     position: relative;
     width: 100px;
     height: 100px;
-    margin: 0 auto;
-    margin-bottom: var(--spacing-lg);
+    margin: 0 auto var(--spacing-lg);
 }
 
 .avatar::before {
@@ -181,7 +265,7 @@ button {
     position: absolute;
     inset: -3px;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, var(--bg-accent), #7c3aed);
+    background: var(--gradient-brand);
     opacity: 0.3;
     z-index: 0;
     animation: pulse 3s ease-in-out infinite;
@@ -214,7 +298,7 @@ button {
 .title {
     font-size: 1rem;
     font-weight: 500;
-    color: var(--bg-accent);
+    color: var(--accent-text);
     margin-bottom: var(--spacing-sm);
 }
 
@@ -254,10 +338,12 @@ button {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     margin-bottom: var(--spacing-sm);
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast),
+                border-color var(--transition-fast),
+                box-shadow var(--transition-fast),
+                transform var(--transition-fast);
     position: relative;
     overflow: hidden;
-    will-change: transform;
 }
 
 .link-card::before {
@@ -267,7 +353,7 @@ button {
     top: 0;
     bottom: 0;
     width: 3px;
-    background: var(--bg-accent);
+    background: var(--accent-fill);
     transform: scaleY(0);
     transition: transform var(--transition-fast);
 }
@@ -295,14 +381,13 @@ button {
     background: var(--bg-secondary);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 1.125rem;
     flex-shrink: 0;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .link-card:hover .link-icon {
-    background: var(--bg-accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
 }
 
 .link-logo {
@@ -332,41 +417,51 @@ button {
 
 .link-arrow {
     color: var(--text-muted);
-    font-size: 0.875rem;
-    transition: all var(--transition-fast);
+    flex-shrink: 0;
     opacity: 0;
     transform: translateX(-8px);
+    transition: opacity var(--transition-fast),
+                transform var(--transition-fast),
+                color var(--transition-fast);
 }
 
-.link-card:hover .link-arrow {
+.link-card:hover .link-arrow,
+.link-card:focus-visible .link-arrow {
     opacity: 1;
     transform: translateX(0);
-    color: var(--bg-accent);
+    color: var(--accent-text);
+}
+
+/* Touch devices have no hover - keep the affordance visible */
+@media (hover: none) {
+    .link-arrow {
+        opacity: 0.55;
+        transform: translateX(0);
+    }
 }
 
 /* Featured Card */
 .link-card.featured {
-    background: linear-gradient(135deg, var(--bg-accent), #7c3aed);
-    border: none;
+    background: var(--gradient-brand);
+    border: 1px solid transparent;
 }
 
 .link-card.featured .link-icon {
     background: rgba(255, 255, 255, 0.2);
-    color: #fff;
+    color: var(--on-accent);
 }
 
-.link-card.featured .link-title,
-.link-card.featured .link-subtitle {
-    color: #fff;
+.link-card.featured .link-title {
+    color: var(--on-accent);
 }
 
 .link-card.featured .link-subtitle {
-    opacity: 0.8;
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .link-card.featured:hover {
     transform: translateX(4px) scale(1.01);
-    box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
+    box-shadow: var(--shadow-featured);
 }
 
 .link-card.featured::before {
@@ -374,25 +469,18 @@ button {
 }
 
 .link-card.featured .link-arrow {
-    color: #fff;
+    color: var(--on-accent);
 }
 
 /* Project Card */
 .link-card.project-card .link-icon {
     background: linear-gradient(135deg, #FFC107, #FF5722);
-    color: #fff;
+    color: var(--on-accent);
 }
 
 .link-card.project-card:hover .link-icon {
     background: linear-gradient(135deg, #FF5722, #FFC107);
 }
-
-/* Platform Icons Colors on Hover */
-.link-icon.youtube { color: var(--text-secondary); }
-.link-card:hover .link-icon.youtube { background: #ff0000; color: #fff; }
-
-.link-icon.tiktok { color: var(--text-secondary); }
-.link-card:hover .link-icon.tiktok { background: #000; color: #fff; }
 
 /* Email Card */
 .email-wrapper {
@@ -412,37 +500,24 @@ button {
     align-items: center;
     justify-content: center;
     background: var(--bg-card);
-    border: 1px dashed var(--border-accent);
+    border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     color: var(--text-muted);
-    font-size: 1rem;
     cursor: pointer;
-    transition: all var(--transition-fast);
     flex-shrink: 0;
+    transition: background-color var(--transition-fast),
+                color var(--transition-fast),
+                border-color var(--transition-fast),
+                box-shadow var(--transition-fast),
+                transform var(--transition-fast);
 }
 
 .copy-btn:hover {
-    background: var(--bg-accent);
-    color: #fff;
-    border-style: solid;
-    border-color: var(--bg-accent);
+    background: var(--accent-fill);
+    color: var(--on-accent);
+    border-color: var(--accent-fill);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
-}
-
-.copy-btn:focus-visible {
-    outline: 2px solid var(--bg-accent);
-    outline-offset: 2px;
-}
-
-.email-card {
-    border: 1px dashed var(--border-accent);
-    background: transparent;
-}
-
-.email-card:hover {
-    background: var(--bg-card);
-    border-style: solid;
 }
 
 /* ==========================================
@@ -450,12 +525,16 @@ button {
    ========================================== */
 .social-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-sm);
+    justify-items: center;
 }
 
 .social-btn {
+    width: 100%;
+    max-width: 72px;
     aspect-ratio: 1;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -463,8 +542,11 @@ button {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     color: var(--text-secondary);
-    font-size: 1.125rem;
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast),
+                color var(--transition-fast),
+                border-color var(--transition-fast),
+                box-shadow var(--transition-fast),
+                transform var(--transition-fast);
 }
 
 .social-btn:hover {
@@ -472,19 +554,33 @@ button {
     box-shadow: var(--shadow-md);
 }
 
-.social-btn:focus-visible {
-    outline: 2px solid var(--bg-accent);
-    outline-offset: 2px;
+/* Brand colors, keyed by data-brand instead of position */
+.social-btn[data-brand="tiktok"]:hover,
+.social-btn[data-brand="x"]:hover,
+.social-btn[data-brand="threads"]:hover,
+.social-btn[data-brand="medium"]:hover {
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
 }
 
-/* Social Button Colors */
-.social-btn:nth-child(1):hover { background: #000; color: #fff; border-color: #000; } /* TikTok */
-.social-btn:nth-child(2):hover { background: #000; color: #fff; border-color: #000; } /* X */
-.social-btn:nth-child(3):hover { background: #000; color: #fff; border-color: #000; } /* Threads */
-.social-btn:nth-child(4):hover { background: #000; color: #fff; border-color: #000; } /* Medium */
-.social-btn:nth-child(5):hover { background: #6364ff; color: #fff; border-color: #6364ff; } /* Mastodon */
-.social-btn:nth-child(6):hover { background: #ff4500; color: #fff; border-color: #ff4500; } /* Reddit */
-.social-btn:nth-child(7):hover { background: #35465c; color: #fff; border-color: #35465c; } /* Tumblr */
+.social-btn[data-brand="mastodon"]:hover {
+    background: #6364ff;
+    color: #ffffff;
+    border-color: #6364ff;
+}
+
+.social-btn[data-brand="reddit"]:hover {
+    background: #ff4500;
+    color: #ffffff;
+    border-color: #ff4500;
+}
+
+.social-btn[data-brand="tumblr"]:hover {
+    background: #35465c;
+    color: #ffffff;
+    border-color: #35465c;
+}
 
 /* ==========================================
    Footer
@@ -515,29 +611,41 @@ button {
 }
 
 .profile {
-    animation: fadeInUp 0.6s ease forwards;
+    animation: fadeInUp 0.6s ease both;
 }
 
 .links-section {
-    animation: fadeInUp 0.6s ease forwards;
-    opacity: 0;
+    animation: fadeInUp 0.6s ease both;
 }
 
-.links-section:nth-child(2) { animation-delay: 0.1s; }
-.links-section:nth-child(3) { animation-delay: 0.2s; }
-.links-section:nth-child(4) { animation-delay: 0.3s; }
-.links-section:nth-child(5) { animation-delay: 0.4s; }
-.links-section:nth-child(6) { animation-delay: 0.5s; }
-.links-section:nth-child(7) { animation-delay: 0.6s; }
+.links-section:nth-of-type(1) { animation-delay: 0.1s; }
+.links-section:nth-of-type(2) { animation-delay: 0.2s; }
+.links-section:nth-of-type(3) { animation-delay: 0.3s; }
+.links-section:nth-of-type(4) { animation-delay: 0.4s; }
+.links-section:nth-of-type(5) { animation-delay: 0.5s; }
+
+/* Ripple (see script.js) */
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.link-card .ripple {
+    position: absolute;
+    border-radius: var(--radius-full);
+    background: currentColor;
+    opacity: 0.12;
+    transform: scale(0);
+    animation: ripple 0.6s ease-out forwards;
+    pointer-events: none;
+}
 
 /* ==========================================
    Responsive Adjustments
    ========================================== */
 @media (max-width: 380px) {
-    .social-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-    
     .name {
         font-size: 1.5rem;
     }
@@ -546,26 +654,29 @@ button {
 @media (min-width: 481px) {
     .container {
         padding: var(--spacing-2xl) var(--spacing-lg);
-        padding-top: calc(var(--spacing-2xl) + 60px);
+        padding-top: calc(var(--spacing-2xl) + var(--control-size) + var(--spacing-md));
     }
-    
+
     .link-card {
         padding: var(--spacing-lg) var(--spacing-xl);
     }
-    
+
     .link-icon {
         width: 48px;
         height: 48px;
-        font-size: 1.25rem;
     }
-    
+
     .avatar {
         width: 120px;
         height: 120px;
     }
-    
+
     .name {
         font-size: 2rem;
+    }
+
+    .social-grid {
+        grid-template-columns: repeat(6, 1fr);
     }
 }
 
@@ -573,8 +684,13 @@ button {
    Reduced Motion
    ========================================== */
 @media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
+        animation-delay: 0s !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
@@ -584,8 +700,8 @@ button {
    Selection
    ========================================== */
 ::selection {
-    background: var(--bg-accent);
-    color: #fff;
+    background: var(--accent-fill);
+    color: var(--on-accent);
 }
 
 /* ==========================================
@@ -616,7 +732,7 @@ button {
     bottom: var(--spacing-xl);
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -634,7 +750,8 @@ button {
     font-family: var(--font-family);
     box-shadow: var(--shadow-lg);
     animation: toastIn 0.3s ease forwards, toastOut 0.3s ease 2s forwards;
-    backdrop-filter: blur(12px);
+    max-width: 90vw;
+    text-align: center;
 }
 
 @keyframes toastIn {
@@ -651,7 +768,9 @@ button {
    Focus Visible
    ========================================== */
 .link-card:focus-visible,
-.control-btn:focus-visible {
-    outline: 2px solid var(--bg-accent);
+.control-btn:focus-visible,
+.social-btn:focus-visible,
+.copy-btn:focus-visible {
+    outline: 2px solid var(--accent-text);
     outline-offset: 2px;
 }

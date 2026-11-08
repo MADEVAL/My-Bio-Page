@@ -10,7 +10,7 @@ A personal link-in-bio page. No framework, no npm install, no `node_modules` fol
 
 **Yevhen Leonidov** - Software Architect & Engineer. I build scalable systems, lead dev teams, run an outsource studio, and apparently also make my own link-in-bio instead of just using Linktree like a normal person.
 
-- 💼 Software devlopment (outsource studio) → [GLOBUS.studio](https://globus.studio)
+- 💼 Software development (outsource studio) → [GLOBUS.studio](https://globus.studio)
 - 🛡️ Main project → [BotBlocker](https://botblocker.top) - WordPress Security Plugin
 
 ---
@@ -54,19 +54,37 @@ Surgical `WP_DEBUG` filter. Suppress notices, deprecations, strict warnings inde
 app/
 ├── index.html   # EN version
 ├── ru.html      # RU version (yes, I speak both)
-├── styles.css   # Dark/light theme, responsive, clean
-├── script.js    # Theme toggle, toast notifications, copy email
-└── assets/      # OG image, photo, logos
+├── styles.css   # Design tokens, dark/light themes, responsive
+├── script.js    # Theme toggle, copy email, toasts, shortcuts
+├── robots.txt   # Crawler rules
+├── sitemap.xml  # Both pages + hreflang alternates
+└── assets/      # OG image, photo, logos, inline SVG favicon
 ```
 
 ## Features
 
-- **Dark / Light theme** - toggle with localStorage persistence
-- **EN / RU** - two static pages, SEO-friendly hreflang tags
-- **Zero dependencies** - no build step, no bundler, ships as-is
-- **Responsive** - works on everything from a flip phone to a 4K monitor
-- **Open Graph & Twitter Card** - link previews done right
-- **Copy email to clipboard** - with a toast notification, because UX matters
+- **Dark / Light theme** - follows the system on first visit, remembers your choice, no flash on load
+- **EN / RU** - two static pages, SEO-friendly hreflang + `x-default`
+- **No build step, no framework, no icon library** - icons are inline SVG, the only external request is the Inter webfont
+- **Responsive** - 44px+ touch targets, works from a flip phone to a 4K monitor
+- **Accessible** - AA contrast in both themes, visible focus states, `aria-live` toasts, reduced-motion support
+- **Open Graph, Twitter Card & JSON-LD** - `ProfilePage` + `Person` with `sameAs`, link previews done right
+- **Copy email to clipboard** - with a fallback and a toast notification, because UX matters
+
+---
+
+## Testing
+
+The audit lives outside `app/`, so it never ships and adds no runtime weight.
+
+```bash
+npx playwright install chromium
+python -m http.server 8123 --directory app
+npm i playwright axe-core
+node tests/landing.audit.js
+```
+
+74 checks: no console/network errors, theme without flash (system preference + persistence), WCAG AA contrast in both themes, axe-core (WCAG 2.0-2.2 AA + best practices), 44px touch targets, no horizontal overflow at 320-2560px, SEO/JSON-LD/hreflang, clipboard with fallback, keyboard shortcuts, reduced motion, ripple and CLS.
 
 ---
 
