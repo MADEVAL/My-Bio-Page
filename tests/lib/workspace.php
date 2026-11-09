@@ -20,7 +20,14 @@ function makeWorkspace(): string
     file_put_contents($root . '/public/styles.css', '/* test fixture */');
     file_put_contents($root . '/public/script.js', '/* test fixture */');
 
-    foreach (['photo.jpg', 'OG.jpg', 'GLOBUS_WHITE.png', 'bb_mini.png', 'favicon.svg'] as $asset) {
+    foreach ([
+        'photo-opt.jpg',
+        'OG-opt.jpg',
+        'GLOBUS_WHITE-opt.png',
+        'bb_mini-opt.png',
+        'apple-touch-icon.png',
+        'favicon.svg',
+    ] as $asset) {
         copy(PUBLIC_DIR . '/assets/' . $asset, $root . '/public/assets/' . $asset);
     }
 
@@ -61,6 +68,80 @@ function seedData(): array
 function seedJson(): string
 {
     return (string) file_get_contents(APP_DIR . '/content/site.seed.json');
+}
+
+function seedSiteUrl(): string
+{
+    return rtrim(seedData()['settings']['siteUrl'], '/');
+}
+
+/** @return array<string, mixed> */
+function seedItem(string $id): array
+{
+    foreach (seedData()['sections'] as $section) {
+        foreach ($section['items'] as $item) {
+            if ($item['id'] === $id) {
+                return $item;
+            }
+        }
+    }
+
+    throw new RuntimeException('Seed item not found: ' . $id);
+}
+
+function seedLogo(): string
+{
+    foreach (seedData()['sections'] as $section) {
+        foreach ($section['items'] as $item) {
+            if (isset($item['logo'])) {
+                return $item['logo'];
+            }
+        }
+    }
+
+    throw new RuntimeException('Seed has no logo asset');
+}
+
+/** @param array<string, mixed> $data */
+function visibleItemCount(array $data): int
+{
+    $count = 0;
+
+    foreach ($data['sections'] as $section) {
+        foreach ($section['items'] as $item) {
+            if ($item['visible']) {
+                $count++;
+            }
+        }
+    }
+
+    return $count;
+}
+
+/** @return array{cards: int, socials: int} */
+function renderedCounts(array $data): array
+{
+    $cards = 0;
+    $socials = 0;
+
+    foreach ($data['sections'] as $section) {
+        $visible = array_values(array_filter(
+            $section['items'],
+            static fn (array $item): bool => $item['visible']
+        ));
+
+        if ($section['layout'] === 'social') {
+            $socials += count($visible);
+        } elseif ($section['layout'] === 'mixed') {
+            foreach ($visible as $item) {
+                $item['type'] === 'social' ? $socials++ : $cards++;
+            }
+        } else {
+            $cards += count($visible);
+        }
+    }
+
+    return ['cards' => $cards, 'socials' => $socials];
 }
 
 function writeSite(string $root, array $data): void

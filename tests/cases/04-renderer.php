@@ -23,13 +23,14 @@ Harness::test('renders the english page', function (): void {
     $root = makeWorkspace();
 
     try {
+        $data = seedData();
         $html = rendererFor($root)->render('en');
 
         assertContains('<html lang="en"', $html);
-        assertContains('Yevhen Leonidov', $html);
-        assertContains('Software Architect &amp; Developer', $html);
-        assertContains('<title>Yevhen Leonidov | Software Architect</title>', $html);
-        assertContains('rel="canonical" href="https://bio.leonidov.dev/"', $html);
+        assertContains(e($data['profile']['en']['name']), $html);
+        assertContains(e($data['profile']['en']['role']), $html);
+        assertContains('<title>' . e($data['meta']['en']['title']) . '</title>', $html);
+        assertContains('rel="canonical" href="' . e(seedSiteUrl() . '/') . '"', $html);
         assertContains('class="social-grid"', $html);
         assertContains('class="email-wrapper"', $html);
         assertContains('id="copyEmail"', $html);
@@ -37,9 +38,9 @@ Harness::test('renders the english page', function (): void {
         assertContains('hreflang="ru"', $html);
         assertContains('/styles.css?v=', $html);
         assertContains('/script.js?v=', $html);
-        assertSame(15, anchors($html));
-        assertSame(6, substr_count($html, 'class="social-btn"'));
-        assertSame(8, substr_count($html, 'class="link-card'));
+        assertSame(1 + visibleItemCount($data), anchors($html));
+        assertSame(renderedCounts($data)['socials'], substr_count($html, 'class="social-btn"'));
+        assertSame(renderedCounts($data)['cards'], substr_count($html, 'class="link-card'));
         assertContains('data-theme-default="system"', $html);
         assertNotContains('fonts.googleapis.com', $html);
         assertNotContains('fonts.gstatic.com', $html);
@@ -52,13 +53,14 @@ Harness::test('renders the russian page', function (): void {
     $root = makeWorkspace();
 
     try {
+        $data = seedData();
         $html = rendererFor($root)->render('ru');
 
         assertContains('<html lang="ru"', $html);
-        assertContains('Евгений Леонидов', $html);
-        assertContains('Телеграм-канал', $html);
-        assertContains('Соцсети', $html);
-        assertContains('Написать мне', $html);
+        assertContains(e($data['profile']['ru']['name']), $html);
+        assertContains(e($data['sections'][0]['items'][0]['title']['ru']), $html);
+        assertContains(e($data['sections'][3]['label']['ru']), $html);
+        assertContains(e($data['sections'][4]['items'][0]['title']['ru']), $html);
         assertContains('id="langToggle"', $html);
         assertContains('href="/"', $html);
     } finally {
@@ -101,12 +103,34 @@ Harness::test('skips hidden items', function (): void {
 
     try {
         $data = seedData();
+        $hidden = $data['sections'][3]['items'][1];
         $data['sections'][3]['items'][1]['visible'] = false;
         $html = rendererFor($root, $data)->render('en');
 
-        assertNotContains('>Facebook<', $html);
-        assertNotContains('https://www.facebook.com/', $html);
-        assertSame(6, substr_count($html, 'class="social-btn"'));
+        assertNotContains('>' . e($hidden['title']['en']) . '<', $html);
+        assertNotContains(e($hidden['href']), $html);
+        assertSame(renderedCounts($data)['socials'], substr_count($html, 'class="social-btn"'));
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('skips a section whose items are all hidden', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $data = seedData();
+
+        foreach ($data['sections'][1]['items'] as &$item) {
+            $item['visible'] = false;
+        }
+
+        unset($item);
+
+        $html = rendererFor($root, $data)->render('en');
+
+        assertNotContains('>Projects<', $html);
+        assertNotContains('>Projects</h2>', $html);
     } finally {
         removeWorkspace($root);
     }
@@ -116,8 +140,9 @@ Harness::test('renders logos as images and icons as svg', function (): void {
     $root = makeWorkspace();
 
     try {
+        $logo = seedData()['sections'][0]['items'][1]['logo'];
         $html = rendererFor($root)->render('en');
-        assertContains('src="/assets/GLOBUS_WHITE.png"', $html);
+        assertContains('src="' . e(asset($logo)) . '"', $html);
         assertContains('class="link-logo"', $html);
         assertContains('class="icon-brand"', $html);
         assertContains('class="icon-ui"', $html);
@@ -130,14 +155,15 @@ Harness::test('renders a social item with a logo instead of an icon', function (
     $root = makeWorkspace();
 
     try {
+        $logo = seedLogo();
         $data = seedData();
         unset($data['sections'][3]['items'][2]['icon']);
-        $data['sections'][3]['items'][2]['logo'] = 'assets/bb_mini.png';
+        $data['sections'][3]['items'][2]['logo'] = $logo;
 
         $html = rendererFor($root, $data)->render('en');
 
         assertContains('class="social-btn"', $html);
-        assertContains('src="/assets/bb_mini.png"', $html);
+        assertContains('src="' . e(asset($logo)) . '"', $html);
         assertNotContains('Undefined array key', $html);
     } finally {
         removeWorkspace($root);
@@ -153,8 +179,8 @@ Harness::test('honours the section layout', function (): void {
 
         $html = rendererFor($root, $data)->render('en');
 
-        assertSame(8, substr_count($html, 'class="social-btn"'));
-        assertSame(6, substr_count($html, 'class="link-card'));
+        assertSame(renderedCounts($data)['socials'], substr_count($html, 'class="social-btn"'));
+        assertSame(renderedCounts($data)['cards'], substr_count($html, 'class="link-card'));
     } finally {
         removeWorkspace($root);
     }
@@ -166,9 +192,20 @@ Harness::test('omits an empty subtitle', function (): void {
     try {
         $data = seedData();
         $data['sections'][0]['items'][0]['subtitle'] = ['en' => '', 'ru' => ''];
+
+        $expected = 0;
+
+        foreach ($data['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['visible'] && ($item['subtitle']['en'] ?? '') !== '') {
+                    $expected++;
+                }
+            }
+        }
+
         $html = rendererFor($root, $data)->render('en');
 
-        assertSame(7, substr_count($html, 'class="link-subtitle"'));
+        assertSame($expected, substr_count($html, 'class="link-subtitle"'));
     } finally {
         removeWorkspace($root);
     }
@@ -205,9 +242,10 @@ Harness::test('email block carries the address to copy', function (): void {
     $root = makeWorkspace();
 
     try {
+        $data = seedData();
         $html = rendererFor($root)->render('en');
-        assertContains('data-email="leonidovev@gmail.com"', $html);
-        assertContains('aria-label="Copy email address"', $html);
+        assertContains('data-email="' . e($data['settings']['email']) . '"', $html);
+        assertContains('aria-label="' . e($data['ui']['en']['copyEmail']) . '"', $html);
     } finally {
         removeWorkspace($root);
     }

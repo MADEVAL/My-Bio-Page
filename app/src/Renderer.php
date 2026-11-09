@@ -77,6 +77,12 @@ final class Renderer
                 default => [],
             };
 
+            // Hiding or soft-deleting the last item must not leave an empty
+            // heading behind.
+            if ($cards === [] && $socials === []) {
+                continue;
+            }
+
             $out[] = [
                 'id' => $section['id'],
                 'label' => $section['label'][$lang],

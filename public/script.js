@@ -179,16 +179,29 @@
     const KeyboardNav = {
         init() {
             document.addEventListener('keydown', (e) => {
-                if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+                // Modifier-based shortcuts satisfy WCAG 2.1.4: a single
+                // printable key must never be bound globally.
+                if (
+                    e.defaultPrevented ||
+                    e.repeat ||
+                    !e.altKey ||
+                    !e.shiftKey ||
+                    e.ctrlKey ||
+                    e.metaKey
+                ) return;
                 if (this.isEditable()) return;
 
-                const key = e.key.toLowerCase();
+                // Use physical key codes so Alt+Shift works on layouts and
+                // operating systems where e.key is remapped.
+                const code = e.code;
 
-                if (key === 't') {
+                if (code === 'KeyT') {
+                    e.preventDefault();
                     ThemeController.toggle();
                 }
 
-                if (key === 'l') {
+                if (code === 'KeyL') {
+                    e.preventDefault();
                     const langLink = document.getElementById('langToggle');
                     if (langLink) langLink.click();
                 }

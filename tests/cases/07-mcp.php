@@ -37,8 +37,14 @@ function rpc(App $app, string $method, mixed $params = null, int|string|null $id
 }
 
 /** @return array{isError: bool, text: string, data: mixed} */
-function callTool(App $app, string $name, array $args = []): array
+function callTool(App $app, string $name, array $args = [], bool $autoRev = true): array
 {
+    $mutating = ['create_link', 'update_link', 'move_link', 'set_visibility', 'delete_link', 'update_settings'];
+
+    if ($autoRev && in_array($name, $mutating, true) && !array_key_exists('rev', $args)) {
+        $args['rev'] = currentRev($app);
+    }
+
     $response = rpc($app, 'tools/call', ['name' => $name, 'arguments' => $args]);
     $result = $response['json']['result'];
 
@@ -47,6 +53,11 @@ function callTool(App $app, string $name, array $args = []): array
         'text' => $result['content'][0]['text'],
         'data' => json_decode($result['content'][0]['text'], true),
     ];
+}
+
+function currentRev(App $app): int
+{
+    return (int) callTool($app, 'get_content', [], false)['data']['rev'];
 }
 
 Harness::group('MCP: transport and auth');
@@ -201,6 +212,63 @@ Harness::test('reports unexpected failures as -32603', function (): void {
     }
 });
 
+Harness::group('MCP: argument validation');
+
+Harness::test('rejects malformed argument types without PHP warnings', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+        $title = seedItem('telegram')['title'];
+        $cases = [
+            ['create_link', ['href' => 'https://example.com', 'icon' => 'globe', 'title' => $title], 'section is required'],
+            ['create_link', ['section' => [], 'href' => 'https://example.com', 'icon' => 'globe', 'title' => $title], 'section must be a non-empty string'],
+            ['create_link', ['section' => '', 'href' => 'https://example.com', 'icon' => 'globe', 'title' => $title], 'section must be a non-empty string'],
+            ['create_link', ['section' => 'content', 'href' => 'https://example.com', 'icon' => 'globe', 'title' => $title, 'id' => []], 'id must be a non-empty string'],
+            ['create_link', ['section' => 'content', 'href' => 'https://example.com', 'icon' => 'globe', 'title' => $title, 'position' => '2'], 'position must be an integer'],
+            ['move_link', ['id' => 'telegram', 'section' => []], 'section must be a non-empty string'],
+            ['move_link', ['id' => 'telegram', 'section' => 'content', 'position' => []], 'position must be an integer'],
+            ['list_links', ['section' => []], 'section must be a non-empty string'],
+            ['list_links', ['lang' => []], 'lang must be a non-empty string'],
+            ['preview', ['lang' => []], 'lang must be a non-empty string'],
+        ];
+
+        foreach ($cases as [$tool, $args, $message]) {
+            $result = callTool($app, $tool, $args);
+            assertTrue($result['isError'], $tool);
+            assertContains($message, $result['text'], $tool);
+            assertNotContains('Warning', $result['text'], $tool);
+        }
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
+Harness::test('requires a revision for every mutation', function (): void {
+    $root = makeWorkspace();
+
+    try {
+        $app = mcpApp($root);
+        $title = seedItem('telegram')['title'];
+        $cases = [
+            ['create_link', ['section' => 'content', 'href' => 'https://example.com', 'icon' => 'globe', 'title' => $title]],
+            ['update_link', ['id' => 'telegram']],
+            ['move_link', ['id' => 'telegram', 'section' => 'content']],
+            ['set_visibility', ['id' => 'telegram', 'visible' => false]],
+            ['delete_link', ['id' => 'telegram']],
+            ['update_settings', ['footerStart' => 2020]],
+        ];
+
+        foreach ($cases as [$tool, $args]) {
+            $result = callTool($app, $tool, $args, false);
+            assertTrue($result['isError'], $tool);
+            assertContains('rev is required', $result['text'], $tool);
+        }
+    } finally {
+        removeWorkspace($root);
+    }
+});
+
 Harness::group('MCP: reading');
 
 Harness::test('returns the whole content tree', function (): void {
@@ -230,6 +298,10 @@ Harness::test('returns the content schema', function (): void {
         $item = $schema['properties']['sections']['items']['properties']['items']['items']['properties'];
         assertSame('^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$', $item['logo']['pattern']);
         assertSame('^(https?://|mailto:)[^\\s]+$', $item['href']['pattern']);
+        assertSame('^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg)$', $schema['properties']['settings']['properties']['ogImage']['pattern']);
+        assertSame(70, $schema['properties']['meta']['properties']['en']['properties']['title']['maxLength']);
+        assertSame(50, $schema['properties']['meta']['properties']['en']['properties']['description']['minLength']);
+        assertSame(160, $schema['properties']['meta']['properties']['en']['properties']['description']['maxLength']);
     } finally {
         removeWorkspace($root);
     }
@@ -259,11 +331,19 @@ Harness::test('filters links by section, visibility and language', function (): 
         assertCount(0, callTool($app, 'list_links', ['visible' => false])['data']['items']);
 
         $ru = callTool($app, 'list_links', ['section' => 'primary', 'lang' => 'ru']);
-        assertSame('Телеграм-канал', $ru['data']['items'][0]['title']);
+        assertSame(seedItem('telegram')['title']['ru'], $ru['data']['items'][0]['title']);
 
         $bad = callTool($app, 'list_links', ['visible' => 'false']);
         assertTrue($bad['isError']);
         assertContains('visible must be a boolean', $bad['text']);
+
+        $badLang = callTool($app, 'list_links', ['lang' => 'de']);
+        assertTrue($badLang['isError']);
+        assertContains('lang must be en or ru', $badLang['text']);
+
+        $badSection = callTool($app, 'list_links', ['section' => 'ghost']);
+        assertTrue($badSection['isError']);
+        assertContains('Unknown section', $badSection['text']);
     } finally {
         removeWorkspace($root);
     }
@@ -438,7 +518,7 @@ Harness::test('updates a link', function (): void {
         assertSame(2, $result['data']['rev']);
 
         $links = callTool($app, 'list_links', ['section' => 'primary', 'lang' => 'en'])['data']['items'];
-        assertSame('Telegram Channel', $links[0]['title']);
+        assertSame(seedItem('telegram')['title']['en'], $links[0]['title']);
     } finally {
         removeWorkspace($root);
     }
@@ -451,7 +531,7 @@ Harness::test('refuses icon and logo at the same time', function (): void {
         $result = callTool(mcpApp($root), 'update_link', [
             'id' => 'telegram',
             'icon' => 'globe',
-            'logo' => 'assets/bb_mini.png',
+            'logo' => seedLogo(),
         ]);
 
         assertTrue($result['isError']);
@@ -466,9 +546,10 @@ Harness::test('switches an item from icon to logo', function (): void {
 
     try {
         $app = mcpApp($root);
+        $logo = seedLogo();
         $result = callTool($app, 'update_link', [
             'id' => 'telegram',
-            'logo' => 'assets/bb_mini.png',
+            'logo' => $logo,
         ]);
 
         assertFalse($result['isError'], $result['text']);
@@ -484,7 +565,7 @@ Harness::test('switches an item from icon to logo', function (): void {
         foreach ($content['sections'] as $section) {
             foreach ($section['items'] as $item) {
                 if ($item['id'] === 'telegram') {
-                    assertSame('assets/bb_mini.png', $item['logo']);
+                    assertSame($logo, $item['logo']);
                     assertFalse(isset($item['icon']));
                 }
 

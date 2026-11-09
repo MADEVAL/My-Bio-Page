@@ -14,7 +14,6 @@ const TOKEN = 'integration-token-0123456789abcdef';
 
 require __DIR__ . '/lib/harness.php';
 require __DIR__ . '/lib/workspace.php';
-
 function copyDir(string $source, string $dest, array $skip = []): void
 {
     $real = realpath($source);
@@ -170,9 +169,10 @@ try {
 
         assertSame(200, $response['status']);
         assertContains('text/html', $response['headers']['content-type']);
-        assertContains('Yevhen Leonidov', $response['body']);
+        assertContains(seedData()['profile']['en']['name'], $response['body']);
         assertContains('public, max-age=60', $response['headers']['cache-control']);
         assertTrue(isset($response['headers']['etag']));
+        assertFalse(isset($response['headers']['x-powered-by']), 'X-Powered-By must be removed');
         assertContains('sha256-', $response['headers']['content-security-policy']);
         assertNotContains("'unsafe-inline'", $response['headers']['content-security-policy']);
     });
@@ -275,6 +275,7 @@ try {
                 'icon' => 'globe',
                 'title' => ['en' => 'HTTP Test', 'ru' => 'HTTP Тест'],
                 'subtitle' => ['en' => 'example.com', 'ru' => 'example.com'],
+                'rev' => $initialRev,
             ],
         ]);
 

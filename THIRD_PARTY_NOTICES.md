@@ -5,6 +5,13 @@
 `public/assets/fonts/InterVariable.woff2` is distributed under the SIL Open Font
 License 1.1. See `public/assets/fonts/LICENSE.txt`.
 
+## Simple Icons (brand logos)
+
+The filled brand glyphs in `app/src/Icons.php` come from
+[Simple Icons](https://simpleicons.org/) and are licensed under CC0 1.0.
+Trademarks and brand names remain the property of their respective owners; the
+icons are used only to identify the linked services.
+
 ## Lucide (UI icons)
 
 The stroked icons in `app/src/Icons.php` come from [Lucide](https://lucide.dev/)

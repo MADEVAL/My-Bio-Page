@@ -33,6 +33,7 @@ DirectoryIndex index.php
 
 # The PHP front controllers send these too; this covers static assets.
 <IfModule mod_headers.c>
+    Header always unset X-Powered-By
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "DENY"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"

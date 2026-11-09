@@ -13,7 +13,7 @@ Harness::test('serves the english page with cache headers', function (): void {
         $response = $app->page('/');
 
         assertSame(200, $response->status);
-        assertContains('Yevhen Leonidov', $response->body);
+        assertContains(e(seedData()['profile']['en']['name']), $response->body);
         assertSame('text/html; charset=utf-8', $response->headers['Content-Type']);
         assertSame('en', $response->headers['Content-Language']);
         assertContains('public, max-age=60', $response->headers['Cache-Control']);
@@ -90,7 +90,7 @@ Harness::test('serves the page when the cache cannot be written', function (): v
         $response = (new App($root, ['mcpToken' => 'secret']))->page('/');
 
         assertSame(200, $response->status);
-        assertContains('Yevhen Leonidov', $response->body);
+        assertContains(e(seedData()['profile']['en']['name']), $response->body);
     } finally {
         removeWorkspace($root);
     }
@@ -158,7 +158,7 @@ Harness::test('serves a generated robots.txt', function (): void {
         assertSame(200, $response->status);
         assertSame('text/plain; charset=utf-8', $response->headers['Content-Type']);
         assertContains('Disallow: /mcp', $response->body);
-        assertContains('Sitemap: https://bio.leonidov.dev/sitemap.xml', $response->body);
+        assertContains('Sitemap: ' . seedSiteUrl() . '/sitemap.xml', $response->body);
     } finally {
         removeWorkspace($root);
     }

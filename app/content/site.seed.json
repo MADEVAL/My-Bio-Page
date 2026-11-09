@@ -5,15 +5,15 @@
         "email": "leonidovev@gmail.com",
         "themeDefault": "system",
         "footerStart": 2016,
-        "photo": "assets/photo.jpg",
-        "ogImage": "assets/OG.jpg",
+        "photo": "assets/photo-opt.jpg",
+        "ogImage": "assets/OG-opt.jpg",
         "personUrl": "https://leonidov.dev",
         "worksFor": {
             "name": "GLOBUS.studio",
             "url": "https://globus.studio"
         },
         "ga4": "",
-        "lastmod": "2026-11-08"
+        "lastmod": "2026-11-09"
     },
     "meta": {
         "en": {
@@ -40,18 +40,18 @@
             "name": "Yevhen Leonidov",
             "role": "Software Architect & Developer",
             "bio": "Building scalable solutions & leading development teams",
-            "alt": "Yevhen Leonidov"
+            "alt": "Portrait of Yevhen Leonidov"
         },
         "ru": {
             "name": "Евгений Леонидов",
             "role": "Архитектор ПО и разработчик",
             "bio": "Создаю масштабируемые решения и руковожу командами разработки",
-            "alt": "Евгений Леонидов"
+            "alt": "Портрет Евгения Леонидова"
         }
     },
     "ui": {
         "en": {
-            "switchLang": "switch to Russian",
+            "switchLang": "Switch to Russian",
             "copyEmail": "Copy email address",
             "themeToLight": "Switch to light theme",
             "themeToDark": "Switch to dark theme",
@@ -60,7 +60,7 @@
             "controls": "Page controls"
         },
         "ru": {
-            "switchLang": "переключить на английский",
+            "switchLang": "Переключить на английский",
             "copyEmail": "Скопировать адрес email",
             "themeToLight": "Включить светлую тему",
             "themeToDark": "Включить тёмную тему",
@@ -91,7 +91,7 @@
                     "id": "globus",
                     "type": "featured",
                     "href": "https://globus.studio",
-                    "logo": "assets/GLOBUS_WHITE.png",
+                    "logo": "assets/GLOBUS_WHITE-opt.png",
                     "order": 2,
                     "visible": true,
                     "title": { "en": "GLOBUS.studio", "ru": "GLOBUS.studio" },
@@ -110,7 +110,7 @@
                     "id": "botblocker",
                     "type": "project",
                     "href": "https://botblocker.top",
-                    "logo": "assets/bb_mini.png",
+                    "logo": "assets/bb_mini-opt.png",
                     "order": 1,
                     "visible": true,
                     "title": { "en": "BotBlocker", "ru": "BotBlocker" },

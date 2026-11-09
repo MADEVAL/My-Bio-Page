@@ -4,6 +4,8 @@ A production-ready, content-driven link-in-bio page built on PHP 8.1+ (tested on
 
 No framework. No runtime dependencies. No build step.
 
+![Preview of the bio page](docs/preview.png)
+
 ---
 
 ## Why this exists
@@ -29,10 +31,10 @@ The result is a small, fast, SEO-friendly page that can be edited by a human or 
 | Editing | 12 MCP tools, optimistic concurrency via `rev` |
 | Performance | Rendered HTML cache with deploy-aware invalidation |
 | SEO | Canonical URLs, hreflang, Open Graph, Twitter Card, JSON-LD, sitemap |
-| Accessibility | WCAG 2.0–2.2 AA, axe-core clean, keyboard support, reduced motion |
+| Accessibility | WCAG 2.0–2.2 AA target, axe-core clean, modifier-key shortcuts, reduced motion |
 | Security | Token auth, strict validation, atomic writes, CSP and hardening headers |
 | Operations | No daemons, no queues, no database, no Composer, no NPM at runtime |
-| Testing | 187 unit tests, 100% line coverage, 16 HTTP checks, 74 browser checks |
+| Testing | 195 unit tests, 100% line coverage, 16 HTTP checks, 76 browser checks |
 
 ---
 
@@ -53,7 +55,7 @@ request ──► web server ──► public/index.php ──► App ──► 
 
 ## Quick start
 
-Requirements: PHP 8.1 or newer (tested on 8.5); Xdebug only for coverage runs.
+Requirements: PHP 8.1 or newer (tested on 8.5). Xdebug is required for the coverage-gated test runner (`tests/run.php`); production does not need it.
 
 ```bash
 php -S 127.0.0.1:8123 -t public tests/router.php
@@ -96,7 +98,10 @@ app/                       # private, never served by the web server
 ├── cache/                 # rendered HTML (gitignored)
 └── bio.token              # MCP token (0600, gitignored, outside public/)
 
-tests/                     # 187 unit, 16 HTTP, 74 Playwright checks
+tests/                     # 195 unit, 16 HTTP, 76 Playwright checks
+
+docs/preview.png           # README preview (not deployed)
+SECURITY.md                # vulnerability reporting
 ```
 
 ---
@@ -128,7 +133,7 @@ Supported section layouts:
 
 Icons come from a fixed inline-SVG registry. An item can use `logo` instead of `icon`, including social buttons.
 
-Validation rejects invalid content before it reaches disk: bad schemes, unsafe asset paths, missing asset files, duplicate IDs, empty required translations, impossible dates, invalid GA4 IDs, inconsistent email items, oversized fields and content, and OG images that are not 1200×630. An item must have exactly one of `icon` or `logo`; the site has at most one email item and its `href` must match `settings.email`.
+Validation rejects invalid content before it reaches disk: bad schemes, unsafe asset paths, missing asset files, duplicate IDs, empty required translations, impossible dates, invalid GA4 IDs, inconsistent email items, oversized fields and content, meta titles over 70 characters, descriptions outside 50–160 characters, and OG images that are not 1200×630. An item must have exactly one of `icon` or `logo`; the site has at most one email item and its `href` must match `settings.email`.
 
 ---
 
@@ -168,7 +173,7 @@ curl -s https://your-domain.com/mcp.php \
 | `preview` | Render either language without touching the cache |
 | `publish` | Drop the HTML cache |
 
-Every mutation accepts `rev`. A stale revision returns a conflict instead of silently overwriting a newer change. Read-only tools carry `readOnlyHint`, `delete_link` carries `destructiveHint`, and `create_link` requires exactly one of `icon` or `logo`.
+Every mutation requires `rev`. A stale revision returns a conflict instead of silently overwriting a newer change. Read-only tools carry `readOnlyHint`, `delete_link` carries `destructiveHint`, and `create_link` requires exactly one of `icon` or `logo`.
 
 ### Authentication
 
@@ -334,6 +339,7 @@ location ~ ^/mcp/?$ {
 
 location ~ \.php$ {
     include fastcgi_params;
+    fastcgi_hide_header X-Powered-By;
     fastcgi_pass unix:/run/php/php-fpm.sock;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
     fastcgi_param HTTP_AUTHORIZATION $http_authorization;
@@ -397,6 +403,15 @@ chmod 600 /var/www/example/app/bio.token
 
 If the token cannot be created or read, MCP answers `401` and the public site keeps working.
 
+The content file, backups and audit log contain the public contact address. On
+shared hosting, keep them private to the web user:
+
+```bash
+chmod 600 /var/www/example/app/content/site.json \
+  /var/www/example/app/content/.audit.jsonl
+chmod 600 /var/www/example/app/content/backups/*.json
+```
+
 ### Cache
 
 The rendered HTML cache is invalidated automatically when any of these change:
@@ -427,7 +442,10 @@ After deploying new PHP code, reload PHP-FPM (or keep `opcache.validate_timestam
 - All user content is escaped; JSON-LD uses `JSON_HEX_TAG`; only `http(s)` and `mailto` links are accepted.
 - CSS/JS URLs carry a content-version query so a deploy does not leave browsers on stale assets.
 - Google Fonts is not loaded; Inter is self-hosted from `public/assets/fonts/`.
+- The app removes `X-Powered-By`; keep `expose_php=Off`, `display_errors=Off` and `log_errors=On` in production as the first line of defence.
 - Serve the site over HTTPS. The app sends HSTS but does not redirect HTTP to HTTPS; configure that at the web server. HSTS deliberately omits `includeSubDomains` so the setting stays safe on shared domains.
+
+Security reports: see [SECURITY.md](SECURITY.md).
 
 ### Recovery
 
@@ -449,8 +467,10 @@ GA4 is off by default. An empty `ga4` string means no tag and no request to `goo
 Switch it at runtime through MCP:
 
 ```json
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"update_settings","arguments":{"ga4":"G-XXXXXXXXXX"}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"update_settings","arguments":{"ga4":"G-XXXXXXXXXX","rev":1}}}
 ```
+
+`rev` is required on every mutation; read `get_content` first to get the current revision.
 
 Disable with `"ga4": ""`. `UA-` properties are rejected.
 
@@ -461,22 +481,22 @@ GA4 sets cookies, so where consent is required this switch alone is not enough. 
 ## Testing
 
 ```bash
-php -d xdebug.mode=coverage tests/run.php   # 187 unit tests, 100% line coverage gate
+php -d xdebug.mode=coverage tests/run.php   # 195 unit tests, 100% line coverage gate
 php tests/http.php                          # 16 end-to-end checks over real sockets (needs curl)
 npm i --no-save --no-package-lock playwright axe-core   # test-only
 npx playwright install chromium
 php -S 127.0.0.1:8123 -t public tests/router.php &
-node tests/landing.audit.js                 # 74 browser checks (Playwright + axe-core)
+node tests/landing.audit.js                 # 76 browser checks (Playwright + axe-core)
 ```
 
 `tests/run.php` fails if any executable line in `app/src`, `public/index.php`, `public/mcp.php` or `app/templates/page.php` is not covered. Coverage is measured by Xdebug; there is no PHPUnit and no Composer.
 
-The Playwright suite covers WCAG 2.0–2.2 AA via axe-core, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang, the clipboard fallback, and keyboard shortcuts.
+The Playwright suite checks the axe-core WCAG rules, contrast in both themes, 44px touch targets, no horizontal overflow from 320 to 2560px, CLS, JSON-LD, hreflang, the clipboard fallback, and `Alt+Shift+T` / `Alt+Shift+L` keyboard shortcuts. axe-core is automated coverage, not a full WCAG audit.
 
 ```text
-Unit:        187 passed, 100.00% (1068/1068 lines)
+Unit:        195 passed, 100.00% (1116/1116 lines)
 HTTP:        16 passed
-Playwright:  74 passed
+Playwright:  76 passed
 ```
 
 ---

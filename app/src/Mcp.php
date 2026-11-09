@@ -117,7 +117,7 @@ final class Mcp
     private function execute(string $name, array $args): mixed
     {
         return match ($name) {
-            'get_content' => ['rev' => $this->content->load()['rev'], 'content' => $this->content->load()],
+            'get_content' => $this->getContent(),
             'get_schema' => self::schema(),
             'list_sections' => $this->listSections(),
             'list_links' => $this->listLinks($args),
@@ -131,6 +131,13 @@ final class Mcp
             'publish' => $this->publish(),
             default => throw new InvalidArgumentException("Unknown tool: {$name}"),
         };
+    }
+
+    private function getContent(): array
+    {
+        $data = $this->content->load();
+
+        return ['rev' => $data['rev'], 'content' => $data];
     }
 
     private function listSections(): array
@@ -154,7 +161,16 @@ final class Mcp
     private function listLinks(array $args): array
     {
         $data = $this->content->load();
-        $sectionFilter = is_string($args['section'] ?? null) ? $args['section'] : null;
+        $sectionFilter = null;
+
+        if (array_key_exists('section', $args)) {
+            $sectionFilter = (string) $this->stringArg($args, 'section');
+
+            if ($this->sectionIndex($data, $sectionFilter) === null) {
+                throw new InvalidArgumentException("Unknown section: {$sectionFilter}");
+            }
+        }
+
         $visibleFilter = null;
 
         if (array_key_exists('visible', $args)) {
@@ -165,7 +181,16 @@ final class Mcp
             $visibleFilter = $args['visible'];
         }
 
-        $lang = is_string($args['lang'] ?? null) ? $args['lang'] : null;
+        $lang = null;
+
+        if (array_key_exists('lang', $args)) {
+            $lang = (string) $this->stringArg($args, 'lang');
+
+            if (!in_array($lang, ['en', 'ru'], true)) {
+                throw new InvalidArgumentException('lang must be en or ru');
+            }
+        }
+
         $out = [];
 
         foreach ($data['sections'] as $section) {
@@ -195,25 +220,21 @@ final class Mcp
 
     private function createLink(array $args): array
     {
-        $sectionId = (string) ($args['section'] ?? '');
+        $sectionId = $this->stringArg($args, 'section', true);
         $created = null;
 
         $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $sectionId, &$created): array {
-            $index = null;
-
-            foreach ($d['sections'] as $i => $section) {
-                if ($section['id'] === $sectionId) {
-                    $index = $i;
-                }
-            }
+            $index = $this->sectionIndex($d, $sectionId);
 
             if ($index === null) {
                 throw new InvalidArgumentException("Unknown section: {$sectionId}");
             }
 
             $title = is_array($args['title'] ?? null) ? $args['title'] : ['en' => '', 'ru' => ''];
+            $idBase = $this->stringArg($args, 'id')
+                ?? (is_string($title['en'] ?? null) ? $title['en'] : 'link');
             $item = [
-                'id' => $this->uniqueId($d, (string) ($args['id'] ?? ($title['en'] ?? 'link'))),
+                'id' => $this->uniqueId($d, $idBase),
                 'type' => $args['type'] ?? 'link',
                 'href' => $args['href'] ?? '',
                 'order' => 1,
@@ -228,7 +249,8 @@ final class Mcp
                 }
             }
 
-            $position = isset($args['position']) ? max(1, (int) $args['position']) : count($d['sections'][$index]['items']) + 1;
+            $position = $this->intArg($args, 'position');
+            $position = $position === null ? count($d['sections'][$index]['items']) + 1 : max(1, $position);
             array_splice($d['sections'][$index]['items'], $position - 1, 0, [$item]);
             $d['sections'][$index]['items'] = $this->reorder($d['sections'][$index]['items']);
             $created = $item['id'];
@@ -278,7 +300,7 @@ final class Mcp
     private function moveLink(array $args): array
     {
         $id = $this->requireId($args);
-        $target = (string) ($args['section'] ?? '');
+        $target = $this->stringArg($args, 'section', true);
 
         $data = $this->content->mutate($this->actor, $this->rev($args), function (array $d) use ($args, $id, $target): array {
             [$s, $i] = $this->locate($d, $id);
@@ -286,19 +308,14 @@ final class Mcp
             array_splice($d['sections'][$s]['items'], $i, 1);
             $d['sections'][$s]['items'] = $this->reorder($d['sections'][$s]['items']);
 
-            $targetIndex = null;
-
-            foreach ($d['sections'] as $index => $section) {
-                if ($section['id'] === $target) {
-                    $targetIndex = $index;
-                }
-            }
+            $targetIndex = $this->sectionIndex($d, $target);
 
             if ($targetIndex === null) {
                 throw new InvalidArgumentException("Unknown section: {$target}");
             }
 
-            $position = isset($args['position']) ? max(1, (int) $args['position']) : count($d['sections'][$targetIndex]['items']) + 1;
+            $position = $this->intArg($args, 'position');
+            $position = $position === null ? count($d['sections'][$targetIndex]['items']) + 1 : max(1, $position);
             array_splice($d['sections'][$targetIndex]['items'], $position - 1, 0, [$item]);
             $d['sections'][$targetIndex]['items'] = $this->reorder($d['sections'][$targetIndex]['items']);
 
@@ -413,10 +430,14 @@ final class Mcp
 
     private function preview(array $args): array
     {
-        $lang = is_string($args['lang'] ?? null) ? $args['lang'] : 'en';
+        $lang = 'en';
 
-        if (!in_array($lang, ['en', 'ru'], true)) {
-            throw new InvalidArgumentException('lang must be en or ru');
+        if (array_key_exists('lang', $args)) {
+            $lang = (string) $this->stringArg($args, 'lang');
+
+            if (!in_array($lang, ['en', 'ru'], true)) {
+                throw new InvalidArgumentException('lang must be en or ru');
+            }
         }
 
         return ['lang' => $lang, 'html' => $this->renderer->render($lang)];
@@ -442,6 +463,17 @@ final class Mcp
         }
 
         throw new InvalidArgumentException("Unknown item: {$id}");
+    }
+
+    private function sectionIndex(array $data, string $id): ?int
+    {
+        foreach ($data['sections'] as $index => $section) {
+            if ($section['id'] === $id) {
+                return $index;
+            }
+        }
+
+        return null;
     }
 
     private function reorder(array $items): array
@@ -490,19 +522,47 @@ final class Mcp
 
     private function requireId(array $args): string
     {
-        $id = $args['id'] ?? null;
+        $id = $this->stringArg($args, 'id', true);
 
-        if (!is_string($id) || $id === '') {
-            throw new InvalidArgumentException('id is required');
-        }
-
-        return $id;
+        return (string) $id;
     }
 
-    private function rev(array $args): ?int
+    private function stringArg(array $args, string $key, bool $required = false): ?string
+    {
+        if (!array_key_exists($key, $args)) {
+            if ($required) {
+                throw new InvalidArgumentException("{$key} is required");
+            }
+
+            return null;
+        }
+
+        $value = $args[$key];
+
+        if (!is_string($value) || ($required && $value === '')) {
+            throw new InvalidArgumentException("{$key} must be a non-empty string");
+        }
+
+        return $value;
+    }
+
+    private function intArg(array $args, string $key): ?int
+    {
+        if (!array_key_exists($key, $args)) {
+            return null;
+        }
+
+        if (!is_int($args[$key])) {
+            throw new InvalidArgumentException("{$key} must be an integer");
+        }
+
+        return $args[$key];
+    }
+
+    private function rev(array $args): int
     {
         if (!array_key_exists('rev', $args)) {
-            return null;
+            throw new InvalidArgumentException('rev is required');
         }
 
         if (!is_int($args['rev'])) {
@@ -583,7 +643,7 @@ final class Mcp
                 'description' => 'Create a link and insert it at an optional position.',
                 'inputSchema' => [
                     'type' => 'object',
-                    'required' => ['section', 'href', 'title'],
+                    'required' => ['section', 'href', 'title', 'rev'],
                     'oneOf' => [
                         ['required' => ['icon']],
                         ['required' => ['logo']],
@@ -608,7 +668,7 @@ final class Mcp
                 'description' => 'Patch a link by id. Localised fields are replaced as a whole.',
                 'inputSchema' => [
                     'type' => 'object',
-                    'required' => ['id'],
+                    'required' => ['id', 'rev'],
                     'properties' => [
                         'id' => ['type' => 'string'],
                         'title' => ['type' => 'object'],
@@ -627,7 +687,7 @@ final class Mcp
                 'description' => 'Move a link to another section or position.',
                 'inputSchema' => [
                     'type' => 'object',
-                    'required' => ['id', 'section'],
+                    'required' => ['id', 'section', 'rev'],
                     'properties' => [
                         'id' => ['type' => 'string'],
                         'section' => ['type' => 'string'],
@@ -641,7 +701,7 @@ final class Mcp
                 'description' => 'Show or hide a link without deleting it.',
                 'inputSchema' => [
                     'type' => 'object',
-                    'required' => ['id', 'visible'],
+                    'required' => ['id', 'visible', 'rev'],
                     'properties' => [
                         'id' => ['type' => 'string'],
                         'visible' => ['type' => 'boolean'],
@@ -655,7 +715,7 @@ final class Mcp
                 'annotations' => ['destructiveHint' => true],
                 'inputSchema' => [
                     'type' => 'object',
-                    'required' => ['id'],
+                    'required' => ['id', 'rev'],
                     'properties' => [
                         'id' => ['type' => 'string'],
                         'hard' => ['type' => 'boolean'],
@@ -668,6 +728,7 @@ final class Mcp
                 'description' => 'Update email (including the visible contact card), themeDefault, footerStart or the GA4 measurement ID.',
                 'inputSchema' => [
                     'type' => 'object',
+                    'required' => ['rev'],
                     'properties' => [
                         'email' => ['type' => 'string'],
                         'themeDefault' => ['type' => 'string', 'enum' => Content::THEMES],
@@ -713,7 +774,7 @@ final class Mcp
                         'footerStart' => ['type' => 'integer', 'minimum' => 1900, 'maximum' => 9999],
                         'ga4' => ['type' => 'string', 'pattern' => '^(|G-[A-Z0-9]{10})$', 'description' => 'GA4 measurement ID like G-XXXXXXXXXX; empty disables analytics'],
                         'photo' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$'],
-                        'ogImage' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg|svg)$'],
+                        'ogImage' => ['type' => 'string', 'pattern' => '^assets/[A-Za-z0-9._-]+\\.(png|jpg|jpeg)$'],
                         'personUrl' => ['type' => 'string', 'format' => 'uri', 'minLength' => 1],
                         'worksFor' => [
                             'type' => 'object',
@@ -731,8 +792,8 @@ final class Mcp
                     'required' => ['en', 'ru'],
                     'additionalProperties' => false,
                     'properties' => [
-                        'en' => self::localizedObject(['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']),
-                        'ru' => self::localizedObject(['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']),
+                        'en' => self::metaObject(),
+                        'ru' => self::metaObject(),
                     ],
                 ],
                 'profile' => [
@@ -809,6 +870,19 @@ final class Mcp
             'additionalProperties' => false,
             'properties' => $properties,
         ];
+    }
+
+    private static function metaObject(): array
+    {
+        $object = self::localizedObject(
+            ['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']
+        );
+
+        $object['properties']['title']['maxLength'] = 70;
+        $object['properties']['description']['minLength'] = 50;
+        $object['properties']['description']['maxLength'] = 160;
+
+        return $object;
     }
 
     private static function localizedField(bool $allowEmpty = false, bool $allowNull = false): array

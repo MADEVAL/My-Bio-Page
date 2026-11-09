@@ -20,10 +20,10 @@ $matrix = [
     ['rev is a string', ['rev'], '1'],
     ['settings is not an object', ['settings'], 'x'],
     ['siteUrl is empty', ['settings', 'siteUrl'], ''],
-    ['siteUrl is not https', ['settings', 'siteUrl'], 'http://bio.leonidov.dev'],
+    ['siteUrl is not https', ['settings', 'siteUrl'], 'http://example.com'],
     ['siteUrl is malformed', ['settings', 'siteUrl'], 'https://not a url'],
-    ['siteUrl has a query', ['settings', 'siteUrl'], 'https://bio.leonidov.dev/?x=1'],
-    ['siteUrl has a fragment', ['settings', 'siteUrl'], 'https://bio.leonidov.dev/#top'],
+    ['siteUrl has a query', ['settings', 'siteUrl'], 'https://example.com/?x=1'],
+    ['siteUrl has a fragment', ['settings', 'siteUrl'], 'https://example.com/#top'],
     ['email is invalid', ['settings', 'email'], 'nope'],
     ['personUrl is invalid', ['settings', 'personUrl'], 'javascript:alert(1)'],
     ['photo is unsafe', ['settings', 'photo'], 'javascript:alert(1)'],
@@ -32,13 +32,17 @@ $matrix = [
     ['footerStart is out of range', ['settings', 'footerStart'], 1899],
     ['lastmod has the wrong format', ['settings', 'lastmod'], '08.11.2026'],
     ['lastmod has an impossible date', ['settings', 'lastmod'], '2026-02-30'],
-    ['worksFor is not an object', ['settings', 'worksFor'], 'GLOBUS'],
-    ['worksFor has no url', ['settings', 'worksFor'], ['name' => 'GLOBUS']],
+    ['worksFor is not an object', ['settings', 'worksFor'], 'Acme'],
+    ['worksFor has no url', ['settings', 'worksFor'], ['name' => 'Acme']],
     ['worksFor has an empty name', ['settings', 'worksFor'], ['name' => '', 'url' => 'https://x.test']],
     ['worksFor has an invalid url', ['settings', 'worksFor'], ['name' => 'X', 'url' => 'nope']],
     ['meta.en is missing', ['meta', 'en'], null],
     ['meta.en.title is empty', ['meta', 'en', 'title'], ''],
     ['meta.en.title is too long', ['meta', 'en', 'title'], str_repeat('a', 2001)],
+    ['meta.en.title exceeds the SEO limit', ['meta', 'en', 'title'], str_repeat('a', 71)],
+    ['meta.en.description is too short', ['meta', 'en', 'description'], str_repeat('a', 49)],
+    ['meta.en.description is too long', ['meta', 'en', 'description'], str_repeat('a', 161)],
+    ['ogImage must be raster', ['settings', 'ogImage'], 'assets/favicon.svg'],
     ['profile.en is missing', ['profile', 'en'], null],
     ['profile.ru.name is empty', ['profile', 'ru', 'name'], ''],
     ['ui.en is missing', ['ui', 'en'], null],
@@ -184,11 +188,21 @@ Harness::test('rejects: an OG image with the wrong dimensions', function (): voi
 
     try {
         $data = seedData();
-        $data['settings']['ogImage'] = 'assets/photo.jpg';
+        $data['settings']['ogImage'] = 'assets/photo-opt.jpg';
         assertThrows(InvalidArgumentException::class, static fn (): array => makeContent($root)->validate($data), '1200x630');
     } finally {
         removeWorkspace($root);
     }
+});
+
+Harness::test('accepts: meta title and description at the SEO limits', function (): void {
+    $data = seedData();
+    $data['meta']['en']['title'] = str_repeat('a', 70);
+    $data['meta']['en']['description'] = str_repeat('a', 50);
+    $data['meta']['ru']['title'] = str_repeat('б', 70);
+    $data['meta']['ru']['description'] = str_repeat('б', 160);
+
+    assertSame($data, validator()->validate($data));
 });
 
 Harness::test('accepts: null labels and empty subtitles', function (): void {

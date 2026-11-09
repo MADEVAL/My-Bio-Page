@@ -27,7 +27,8 @@ final class Cache
             return null;
         }
 
-        if (trim((string) file_get_contents($key)) !== $this->key) {
+        // publish may unlink the key between is_file() and the read.
+        if (trim((string) @file_get_contents($key)) !== $this->key) {
             return null;
         }
 
@@ -66,7 +67,7 @@ final class Cache
         $parts = [(string) $data['rev']];
 
         foreach ($files as $file) {
-            $hash = is_file($file) ? hash_file('sha1', $file) : false;
+            $hash = is_file($file) ? @hash_file('sha1', $file) : false;
             $parts[] = is_string($hash) ? $hash : '0';
         }
 

@@ -59,7 +59,7 @@ $assetVersion = substr((string) @sha1_file(dirname(__DIR__, 2) . '/public/styles
 
     <!-- Icons & Fonts -->
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="<?= e(asset($settings['photo'])) ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="preload" as="image" href="<?= e(asset($settings['photo'])) ?>" fetchpriority="high">
     <link rel="stylesheet" href="/styles.css?v=<?= e($assetVersion) ?>">
 
@@ -76,11 +76,11 @@ $assetVersion = substr((string) @sha1_file(dirname(__DIR__, 2) . '/public/styles
 <body>
     <!-- Controls -->
     <nav class="controls" aria-label="<?= e($ui['controls']) ?>">
-        <a href="<?= e($v['otherHref']) ?>" class="control-btn" id="langToggle" hreflang="<?= e($v['other']) ?>" aria-keyshortcuts="L">
+        <a href="<?= e($v['otherHref']) ?>" class="control-btn" id="langToggle" hreflang="<?= e($v['other']) ?>" aria-keyshortcuts="Alt+Shift+L">
             <span class="lang-text"><?= $v['other'] === 'ru' ? 'RU' : 'EN' ?></span>
             <span class="sr-only"><?= e($ui['switchLang']) ?></span>
         </a>
-        <button type="button" class="control-btn" id="themeToggle" aria-label="<?= e($ui['themeToLight']) ?>" aria-keyshortcuts="T">
+        <button type="button" class="control-btn" id="themeToggle" aria-label="<?= e($ui['themeToLight']) ?>" aria-keyshortcuts="Alt+Shift+T">
             <?= Icons::render('sun', 'icon-sun') ?>
 
             <?= Icons::render('moon', 'icon-moon') ?>

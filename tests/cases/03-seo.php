@@ -6,39 +6,56 @@ use Bio\Seo;
 Harness::group('Seo');
 
 Harness::test('english metadata', function (): void {
-    $seo = Seo::build(seedData(), 'en');
+    $data = seedData();
+    $base = seedSiteUrl();
+    $seo = Seo::build($data, 'en');
 
     assertSame('en', $seo['lang']);
-    assertSame('Yevhen Leonidov | Software Architect', $seo['title']);
-    assertSame('https://bio.leonidov.dev/', $seo['canonical']);
-    assertSame('https://bio.leonidov.dev/ru.html', $seo['alternates']['ru']);
-    assertSame('https://bio.leonidov.dev/', $seo['alternates']['x-default']);
+    assertSame($data['meta']['en']['title'], $seo['title']);
+    assertSame($base . '/', $seo['canonical']);
+    assertSame($base . '/ru.html', $seo['alternates']['ru']);
+    assertSame($base . '/', $seo['alternates']['x-default']);
     assertSame('en_US', $seo['og']['locale']);
     assertSame('ru_RU', $seo['og']['localeAlternate']);
-    assertSame('https://bio.leonidov.dev/assets/OG.jpg', $seo['og']['image']);
-    assertContains('Yevhen Leonidov', $seo['twitter']['title']);
+    assertSame($base . '/' . $data['settings']['ogImage'], $seo['og']['image']);
+    assertSame($data['meta']['en']['title'], $seo['twitter']['title']);
 });
 
 Harness::test('russian metadata', function (): void {
-    $seo = Seo::build(seedData(), 'ru');
+    $data = seedData();
+    $seo = Seo::build($data, 'ru');
 
     assertSame('ru', $seo['lang']);
-    assertSame('https://bio.leonidov.dev/ru.html', $seo['canonical']);
+    assertSame(seedSiteUrl() . '/ru.html', $seo['canonical']);
     assertSame('ru_RU', $seo['og']['locale']);
     assertSame('en_US', $seo['og']['localeAlternate']);
-    assertContains('Архитектор ПО', $seo['title']);
+    assertSame($data['meta']['ru']['title'], $seo['title']);
 });
 
 Harness::test('json-ld exposes every visible profile', function (): void {
-    $ld = json_decode(Seo::build(seedData(), 'en')['jsonld'], true, 512, JSON_THROW_ON_ERROR);
+    $data = seedData();
+    $base = seedSiteUrl();
+    $ld = json_decode(Seo::build($data, 'en')['jsonld'], true, 512, JSON_THROW_ON_ERROR);
+
+    $visibleLinks = [];
+
+    foreach ($data['sections'] as $section) {
+        foreach ($section['items'] as $item) {
+            if ($item['visible'] && str_starts_with($item['href'], 'http')) {
+                $visibleLinks[] = $item['href'];
+            }
+        }
+    }
 
     assertSame('ProfilePage', $ld['@type']);
     assertSame('en', $ld['inLanguage']);
     assertSame('Person', $ld['mainEntity']['@type']);
-    assertSame(13, count($ld['mainEntity']['sameAs']));
-    assertSame('https://t.me/leonidov_dev', $ld['mainEntity']['sameAs'][0]);
-    assertSame('mailto:leonidovev@gmail.com', $ld['mainEntity']['email']);
-    assertSame('GLOBUS.studio', $ld['mainEntity']['worksFor']['name']);
+    assertSame(count($visibleLinks), count($ld['mainEntity']['sameAs']));
+    assertSame($visibleLinks[0], $ld['mainEntity']['sameAs'][0]);
+    assertSame('mailto:' . $data['settings']['email'], $ld['mainEntity']['email']);
+    assertSame($data['settings']['worksFor']['name'], $ld['mainEntity']['worksFor']['name']);
+    assertSame($base . '/' . $data['settings']['photo'], $ld['mainEntity']['image']);
+    assertSame($data['settings']['personUrl'], $ld['mainEntity']['url']);
 });
 
 Harness::test('json-ld keeps order and skips hidden items', function (): void {
@@ -46,24 +63,37 @@ Harness::test('json-ld keeps order and skips hidden items', function (): void {
     $data['sections'][0]['items'][0]['visible'] = false;
     $ld = json_decode(Seo::build($data, 'en')['jsonld'], true, 512, JSON_THROW_ON_ERROR);
 
-    assertSame(12, count($ld['mainEntity']['sameAs']));
-    assertSame('https://globus.studio', $ld['mainEntity']['sameAs'][0]);
+    $visibleLinks = [];
+
+    foreach ($data['sections'] as $section) {
+        foreach ($section['items'] as $item) {
+            if ($item['visible'] && str_starts_with($item['href'], 'http')) {
+                $visibleLinks[] = $item['href'];
+            }
+        }
+    }
+
+    assertSame(count($visibleLinks), count($ld['mainEntity']['sameAs']));
+    assertSame($visibleLinks[0], $ld['mainEntity']['sameAs'][0]);
 });
 
 Harness::test('json-ld is language specific', function (): void {
-    $ld = json_decode(Seo::build(seedData(), 'ru')['jsonld'], true, 512, JSON_THROW_ON_ERROR);
+    $data = seedData();
+    $ld = json_decode(Seo::build($data, 'ru')['jsonld'], true, 512, JSON_THROW_ON_ERROR);
 
     assertSame('ru', $ld['inLanguage']);
-    assertSame('Евгений Леонидов', $ld['mainEntity']['name']);
-    assertSame('Yevhen Leonidov', $ld['mainEntity']['alternateName']);
+    assertSame($data['meta']['ru']['personName'], $ld['mainEntity']['name']);
+    assertSame($data['meta']['ru']['alternateName'], $ld['mainEntity']['alternateName']);
 });
 
 Harness::test('sitemap lists both languages with alternates', function (): void {
-    $xml = Seo::sitemap(seedData());
+    $data = seedData();
+    $base = seedSiteUrl();
+    $xml = Seo::sitemap($data);
 
-    assertContains('<loc>https://bio.leonidov.dev/</loc>', $xml);
-    assertContains('<loc>https://bio.leonidov.dev/ru.html</loc>', $xml);
+    assertContains('<loc>' . $base . '/</loc>', $xml);
+    assertContains('<loc>' . $base . '/ru.html</loc>', $xml);
     assertContains('hreflang="x-default"', $xml);
-    assertContains('<lastmod>2026-11-08</lastmod>', $xml);
+    assertContains('<lastmod>' . $data['settings']['lastmod'] . '</lastmod>', $xml);
     assertNotSame(false, simplexml_load_string($xml));
 });

@@ -26,6 +26,9 @@ final class Content
     private const MAX_TEXT_BYTES = 2000;
     private const MAX_HREF_BYTES = 2048;
     private const MAX_CONTENT_BYTES = 1_048_576;
+    private const MAX_META_TITLE_CHARS = 70;
+    private const MIN_META_DESCRIPTION_CHARS = 50;
+    private const MAX_META_DESCRIPTION_CHARS = 160;
 
     private ?array $data = null;
 
@@ -144,7 +147,12 @@ final class Content
         }
 
         foreach (['photo', 'ogImage'] as $key) {
-            if (preg_match('~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg|svg)$~', $settings[$key]) !== 1) {
+            // OG previews are raster-only; only the profile photo may be SVG.
+            $pattern = $key === 'ogImage'
+                ? '~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg)$~'
+                : '~^assets/[A-Za-z0-9._-]+\.(png|jpg|jpeg|svg)$~';
+
+            if (preg_match($pattern, $settings[$key]) !== 1) {
                 $this->fail("settings.{$key}", 'must be a path under assets/');
             }
 
@@ -219,6 +227,7 @@ final class Content
                 "meta.{$lang}",
                 ['title', 'description', 'ogAlt', 'siteName', 'jobTitle', 'personName', 'alternateName']
             );
+            $this->validateMeta($data['meta'][$lang], "meta.{$lang}");
             $this->validateTextObject(
                 $data['profile'][$lang] ?? null,
                 "profile.{$lang}",
@@ -248,6 +257,32 @@ final class Content
                 $this->fail("{$path}.{$key}", 'is too long');
             }
         }
+    }
+
+    /**
+     * Search engines truncate titles and descriptions; keep the content tree
+     * inside the ranges the SEO audit already expects.
+     *
+     * @param array<string, mixed> $meta
+     */
+    private function validateMeta(array $meta, string $path): void
+    {
+        $title = (string) $meta['title'];
+
+        if (self::charLength($title) > self::MAX_META_TITLE_CHARS) {
+            $this->fail("{$path}.title", 'must not exceed 70 characters');
+        }
+
+        $length = self::charLength((string) $meta['description']);
+
+        if ($length < self::MIN_META_DESCRIPTION_CHARS || $length > self::MAX_META_DESCRIPTION_CHARS) {
+            $this->fail("{$path}.description", 'must be between 50 and 160 characters');
+        }
+    }
+
+    private static function charLength(string $value): int
+    {
+        return (int) preg_match_all('~.~us', $value);
     }
 
     private function validateSections(mixed $sections, string $email): void
@@ -463,6 +498,8 @@ final class Content
             throw new RuntimeException('Cannot write backup file');
         }
 
+        @chmod($this->backupDir . '/' . $name, 0600);
+
         $this->pruneBackups();
     }
 
@@ -497,6 +534,8 @@ final class Content
 
             throw new RuntimeException('Cannot write content file');
         }
+
+        @chmod($this->file, 0600);
     }
 
     private function audit(string $actor, int $rev, string $action): void
@@ -509,6 +548,7 @@ final class Content
         ], JSON_UNESCAPED_SLASHES) . "\n";
 
         @file_put_contents($this->auditFile, $line, FILE_APPEND | LOCK_EX);
+        @chmod($this->auditFile, 0600);
     }
 
     /** @return resource */

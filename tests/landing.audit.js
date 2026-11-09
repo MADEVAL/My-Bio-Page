@@ -194,8 +194,9 @@ const contrastScript = () => {
         ok('тост появляется', await toast.count() > 0);
         const text = await toast.first().textContent();
         ok('тост сообщает об успехе', /copied/i.test(text), text);
+        const expectedEmail = await page.getAttribute('#copyEmail', 'data-email');
         const clip = await page.evaluate(() => navigator.clipboard.readText());
-        ok('email реально в буфере', clip === 'leonidovev@gmail.com', clip);
+        ok('email реально в буфере', clip === expectedEmail, clip);
         const live = await page.evaluate(() => {
             const c = document.getElementById('toastContainer');
             return c.getAttribute('role') + '/' + c.getAttribute('aria-live');
@@ -300,9 +301,9 @@ const contrastScript = () => {
 
     // ---------------------------------------------------------------
     section('8. SEO и метаданные');
-    for (const [url, label, lang, canonical] of [
-        [BASE + '/', 'EN', 'en', 'https://bio.leonidov.dev/'],
-        [BASE + '/ru.html', 'RU', 'ru', 'https://bio.leonidov.dev/ru.html']
+    for (const [url, label, lang, canonicalSuffix] of [
+        [BASE + '/', 'EN', 'en', '/'],
+        [BASE + '/ru.html', 'RU', 'ru', '/ru.html']
     ]) {
         const { ctx, page } = await newPage(browser);
         await page.goto(url, { waitUntil: 'load' });
@@ -335,11 +336,11 @@ const contrastScript = () => {
             };
         });
         ok(label + ': lang=' + seo.lang, seo.lang === lang);
-        ok(label + ': canonical корректен', seo.canonical === canonical, seo.canonical);
+        ok(label + ': canonical корректен', Boolean(seo.canonical) && /^https:\/\//.test(seo.canonical) && seo.canonical.endsWith(canonicalSuffix), seo.canonical);
         ok(label + ': hreflang en/ru/x-default', ['en', 'ru', 'x-default'].every((x) => seo.alternates.includes(x)), seo.alternates.join(','));
         ok(label + ': description 50-160 символов', seo.desc && seo.desc.length >= 50 && seo.desc.length <= 160, String(seo.desc && seo.desc.length));
         ok(label + ': OG image 1200x630', seo.og.image && seo.og.w === '1200' && seo.og.h === '630');
-        ok(label + ': og:url без расхождений', seo.og.url === canonical, seo.og.url);
+        ok(label + ': og:url без расхождений', seo.og.url === seo.canonical, seo.og.url);
         ok(label + ': twitter card', seo.twitter === 'summary_large_image');
         ok(label + ': JSON-LD валиден', seo.ld !== 'PARSE_ERROR' && seo.ld['@type'] === 'ProfilePage', typeof seo.ld === 'string' ? seo.ld : seo.ld['@type']);
         const person = seo.ld && seo.ld.mainEntity;
@@ -385,13 +386,19 @@ const contrastScript = () => {
         const before = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
         await page.evaluate(() => document.body.focus());
         await page.keyboard.press('t');
+        const afterPlain = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+        ok('одиночная T не переключает тему (WCAG 2.1.4)', before === afterPlain, before + ' -> ' + afterPlain);
+
+        await page.keyboard.press('Alt+Shift+T');
         const after = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-        ok('хоткей T переключает тему', before !== after, before + ' -> ' + after);
+        ok('хоткей Alt+Shift+T переключает тему', before !== after, before + ' -> ' + after);
 
         const ru = await newPage(browser);
         await ru.page.goto(BASE + '/ru.html', { waitUntil: 'load' });
-        await Promise.all([ru.page.waitForURL(BASE + '/'), ru.page.keyboard.press('l')]);
-        ok('хоткей L переключает язык', ru.page.url() === BASE + '/', ru.page.url());
+        await ru.page.keyboard.press('l');
+        ok('одиночная L не переключает язык (WCAG 2.1.4)', ru.page.url() === BASE + '/ru.html', ru.page.url());
+        await Promise.all([ru.page.waitForURL(BASE + '/'), ru.page.keyboard.press('Alt+Shift+L')]);
+        ok('хоткей Alt+Shift+L переключает язык', ru.page.url() === BASE + '/', ru.page.url());
         await ru.ctx.close();
         await ctx.close();
     }

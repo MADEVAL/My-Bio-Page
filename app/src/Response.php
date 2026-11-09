@@ -15,6 +15,9 @@ final class Response
 
     public function send(): void
     {
+        // Never advertise the PHP version in responses.
+        @header_remove('X-Powered-By');
+
         http_response_code($this->status);
 
         foreach ($this->headers as $name => $value) {
