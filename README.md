@@ -4,8 +4,6 @@ A production-ready, content-driven link-in-bio page built on PHP 8.1+ (tested on
 
 No framework. No runtime dependencies. No build step.
 
-![Preview of the bio page](docs/preview.png)
-
 ---
 
 ## Why this exists
